@@ -1,45 +1,92 @@
 # EmbedCraft
 
-## Docs--main
+# InAppNinja (EmbedCraft)
 
-### Docs
+A powerful, high-performance Flutter SDK for displaying in-app campaigns, user engagement nudges, and interactive experiences.
 
-TODO: Document your project here
+## Features
 
----
+- **Rich Tooltips**: Attach contextual guidance tooltips to any Flutter widget.
+- **Stories**: Dynamic, Instagram-like stories inside your app.
+- **Challenges & Gamification**: Custom progress trackers, scratch cards, and spin-the-wheels.
+- **Multiple Formats**: In-app bottom sheets, modals, Picture-in-Picture widgets, banners, and inline elements.
+- **Targeting Engine**: Evaluate campaign targets based on event tracking and user properties.
+- **Custom HTML Layers**: Render custom web content cleanly in a sandboxed view.
 
-## Embed_Backend-main
+## Installation
 
-### Embed_Backend
+Add `in_app_ninja` to your `pubspec.yaml`:
 
----
+```yaml
+dependencies:
+  in_app_ninja: ^1.0.0
+```
 
-## LandingPage-main
-
-### LandingPage
-
----
-
-## embed_test_app-main
-
-### untitled
-
-A new Flutter project.
+Run:
+```bash
+flutter pub get
+```
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### 1. Initialize the SDK
 
-A few resources to get you started if this is your first Flutter project:
+Initialize `AppNinja` during app startup with your API key:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```dart
+import 'package:in_app_ninja/in_app_ninja.dart';
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  AppNinja.init(
+    'YOUR_API_KEY',
+    autoRender: true,
+  );
+  
+  runApp(const MyApp());
+}
+```
 
----
+### 2. Identify Users
+
+Set user properties for personalized targeting:
+
+```dart
+await AppNinja.userIdentifier(
+  externalId: 'user_123',
+  name: 'John Doe',
+  email: 'john.doe@example.com',
+  userProperties: {
+    'subscription': 'premium',
+    'sign_up_date': '2026-06-25',
+  },
+);
+```
+
+### 3. Track Events
+
+Track actions to trigger campaigns dynamically:
+
+```dart
+await AppNinja.track('add_to_cart', properties: {
+  'item_id': 'prod_99',
+  'category': 'footwear',
+});
+```
+
+### 4. Track Pages
+
+Track current screen changes to target page-specific nudges:
+
+```dart
+AppNinja.trackPage('checkout_screen', context);
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 
 ## Dashboard Login
 
