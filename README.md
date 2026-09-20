@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # 🚀 EmbedCraft
 
@@ -1398,4 +1398,3 @@ terraform apply            # Provision infrastructure
 ## 📄 License
 
 Proprietary — EmbedCraft © 2024–2026. All rights reserved.
-]]>
