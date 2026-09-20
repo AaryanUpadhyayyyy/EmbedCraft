@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* EmbedCraft Docs design system — pure black & white, monochrome theme.
+   All colors HSL. Tokens drive everything; components avoid raw colors. */
+
+@layer base {
+  :root {
+    /* Surfaces — pure black & white */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
+    --surface-muted: 0 0% 97%;             /* page bg behind sidebars */
+    --surface-elevated: 0 0% 100%;
+    --surface-code: 0 0% 6%;               /* dark code blocks */
+    --surface-code-foreground: 0 0% 96%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+
+    /* Brand — pure black */
+    --primary: 0 0% 8%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 0 0% 94%;
+    --primary-strong: 0 0% 0%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 8%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
+
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 8%;
+
+    --destructive: 0 0% 20%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --border-strong: 0 0% 80%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 8%;
+
+    /* Admonition palette — grayscale */
+    --note: 0 0% 25%;
+    --note-bg: 0 0% 96%;
+    --tip: 0 0% 25%;
+    --tip-bg: 0 0% 96%;
+    --warning: 0 0% 25%;
+    --warning-bg: 0 0% 96%;
+    --danger: 0 0% 25%;
+    --danger-bg: 0 0% 96%;
+    --info: 0 0% 25%;
+    --info-bg: 0 0% 96%;
+
+    /* Layout */
+    --header-height: 64px;
+    --sidebar-width: 280px;
+    --toc-width: 240px;
+    --content-max: 820px;
+
+    --radius: 0.5rem;
+
+    /* Typography */
+    --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .dark {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 96%;
+    --surface-muted: 0 0% 9%;
+    --surface-elevated: 0 0% 10%;
+    --surface-code: 0 0% 3%;
+    --surface-code-foreground: 0 0% 96%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 6%;
+    --primary-soft: 0 0% 16%;
+    --primary-strong: 0 0% 100%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 0% 70%;
+    --destructive-foreground: 0 0% 6%;
+
+    --border: 0 0% 18%;
+    --border-strong: 0 0% 26%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 96%;
+
+    --note-bg: 0 0% 14%;
+    --tip-bg: 0 0% 14%;
+    --warning-bg: 0 0% 14%;
+    --danger-bg: 0 0% 14%;
+    --info-bg: 0 0% 14%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 16px);
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
+  }
+  code, pre {
+    font-family: var(--font-mono);
+  }
+
+  /* Custom scrollbars */
+  .nudge-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .nudge-scroll::-webkit-scrollbar-track { background: transparent; }
+  .nudge-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 6px;
+  }
+  .nudge-scroll::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+@layer components {
+  /* Prose container for rendered docs content */
+  .doc-prose {
+    @apply text-[15.5px] leading-[1.75] text-foreground;
+  }
+  .doc-prose h1 {
+    @apply text-[2.25rem] font-bold tracking-tight mt-2 mb-6;
+    color: hsl(var(--foreground));
+    letter-spacing: -0.02em;
+  }
+  .doc-prose h2 {
+    @apply text-[1.6rem] font-semibold tracking-tight mt-12 mb-4 pb-2;
+    border-bottom: 1px solid hsl(var(--border));
+    letter-spacing: -0.01em;
+  }
+  .doc-prose h3 {
+    @apply text-[1.25rem] font-semibold mt-8 mb-3;
+  }
+  .doc-prose h4 {
+    @apply text-[1.05rem] font-semibold mt-6 mb-2;
+  }
+  .doc-prose p {
+    @apply my-4;
+  }
+  .doc-prose a {
+    @apply text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary;
+  }
+  .doc-prose strong { @apply font-semibold; }
+  .doc-prose em { @apply italic; }
+  .doc-prose ul {
+    @apply my-4 ml-6 list-disc space-y-2;
+  }
+  .doc-prose ol {
+    @apply my-4 ml-6 list-decimal space-y-2;
+  }
+  .doc-prose li::marker { color: hsl(var(--muted-foreground)); }
+  .doc-prose hr { @apply my-8 border-border; }
+  .doc-prose .inline-code {
+    @apply rounded px-[0.4em] py-[0.15em] text-[0.88em] font-medium;
+    background: hsl(var(--muted));
+    color: hsl(var(--primary-strong));
+    border: 1px solid hsl(var(--border));
+  }
+  .doc-prose blockquote {
+    @apply pl-4 border-l-4 italic my-4 text-muted-foreground;
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  .doc-prose table {
+    @apply w-full my-6 text-sm border-collapse overflow-hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+  .doc-prose thead {
+    background: hsl(var(--muted));
+  }
+  .doc-prose th {
+    @apply px-4 py-3 text-left font-semibold;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .doc-prose td {
+    @apply px-4 py-3 align-top;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .doc-prose tbody tr:last-child td { border-bottom: 0; }
+  .doc-prose tbody tr:hover { background: hsl(var(--muted) / 0.4); }
+
+  .doc-prose img {
+    @apply rounded-lg my-6 border border-border max-w-full;
+  }
+
+  /* Heading anchor */
+  .heading-anchor {
+    @apply ml-2 opacity-0 transition-opacity text-primary;
+  }
+  .doc-prose h1:hover .heading-anchor,
+  .doc-prose h2:hover .heading-anchor,
+  .doc-prose h3:hover .heading-anchor,
+  .doc-prose h4:hover .heading-anchor { @apply opacity-100; }
+
+  /* Card-grid for landing-style pages */
+  .doc-card-grid {
+    @apply grid gap-4 my-6;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  .doc-card {
+    @apply rounded-xl border border-border bg-card p-5 transition-all hover:shadow-md hover:border-primary/40;
+  }
+  .doc-card h3 { @apply mt-0 mb-2 text-base font-semibold; }
+  .doc-card p { @apply text-sm text-muted-foreground my-0; }
+  .doc-card .doc-card-cta {
+    @apply mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary;
+  }
+}

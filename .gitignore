@@ -1,0 +1,39 @@
+# JavaScript dependencies and build output
+node_modules/
+dist/
+build/
+.vite/
+.next/
+coverage/
+
+# Flutter and mobile build output
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+android/.gradle/
+android/app/build/
+ios/Pods/
+macos/Pods/
+
+# Local tooling and test output
+.idea/
+.vscode/
+test-results/
+scratch/
+*.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+*secret*
+
+# Archives and generated exports
+*.zip
+*.tar
+*.gz

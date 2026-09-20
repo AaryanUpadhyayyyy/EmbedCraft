@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/(api|v1|admin)/:match*",
+      "destination": "https://embed-backend-w9j0.onrender.com/$1/:match*"
+    },
+    {
+      "source": "/((?!assets/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

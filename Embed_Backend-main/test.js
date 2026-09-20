@@ -1,0 +1,1 @@
+const mongoose = require('mongoose'); require('dotenv').config(); mongoose.connect(process.env.MONGO_URI).then(async () => { const r = await mongoose.connection.collection('rewards').find({ _id: { $in: [new mongoose.Types.ObjectId('69e9bc4fea544ea2f385762b'), new mongoose.Types.ObjectId('69ed9af019c40729bcf0ec77')] } }).toArray(); console.log(r); process.exit(0); });

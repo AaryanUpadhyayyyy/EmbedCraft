@@ -1,0 +1,2610 @@
+/**
+ * Campaign Model Transformers
+ * Converts between rich frontend CampaignEditor model and simplified backend Campaign model
+ */
+
+import type { CampaignEditor, Layer, TargetingRule, BottomSheetConfig, DisplayRules, ModalConfig, BannerConfig, ScratchCardConfig, SpinTheWheelConfig, FullScreenConfig } from '@/store/useEditorStore';
+
+// Backend campaign structure (as expected by server)
+export interface BackendCampaign {
+    id?: string;
+    _id?: string; // ✅ FIX: Add _id for Mongo compatibility
+    nudge_id?: string; // ✅ FIX: Add nudge_id
+    name: string;
+    type: string;
+    campaignType?: 'nudge' | 'challenge'; // Phase 2: Campaign mode
+    challengeDetails?: Record<string, any>; // Phase 2: Gamification engine config blob
+    status: 'active' | 'paused' | 'draft';
+    trigger: string;
+    experience?: string; // ✅ FIX: Add experience
+    rules: BackendRule[];
+    config: Record<string, any>;
+    layers?: Layer[]; // Added layers support
+    createdAt?: string;
+    updatedAt?: string;
+    tags?: string[]; // ✅ FIX: Add tags
+    schedule?: {
+        start_date?: string;
+        end_date?: string;
+        timezone?: string;
+    };
+    targeting?: any[]; // ✅ FIX: Add targeting
+    display_rules?: Record<string, any> & {  // ✅ FIX: Allow full object while keeping legacy fields
+        frequency_cap: number | null;
+        session_cap: number | null;
+    };
+    interfaces?: Record<string, any>[]; // ✅ FIX: Add interfaces
+    stories?: any[]; // ✅ FIX: Add stories
+    goal?: Record<string, any>; // ✅ FIX: Add goal
+}
+
+
+export interface BackendRule {
+    id: number;
+    type: 'attribute' | 'event';
+    field: string;
+    operator: '==' | '!=' | '>' | '<' | '>=' | '<=' | 'contains';
+    value: string | number;
+}
+
+/**
+ * Transform frontend CampaignEditor to backend Campaign format
+ */
+export function editorToBackend(campaign: CampaignEditor): BackendCampaign {
+    const trigger = extractTriggerFromTargeting(campaign.targeting);
+    const rules = transformTargetingRules(campaign.targeting);
+
+    // SYNC LAYER STYLES TO CONFIGS BEFORE SAVING
+    // ContainerEditor updates layer.style directly but doesn't update the nudge-specific configs.
+    // We must ensure the configs get the latest background/colors from the root container layer!
+    const rootLayer = campaign.layers?.find(l => l.type === 'container') || campaign.layers?.[0];
+    if (rootLayer && rootLayer.style) {
+        let bgImage = rootLayer.style.backgroundImage;
+        let extractedBgUrl: string | undefined = undefined;
+        
+        if (bgImage) {
+            if (bgImage === 'none') {
+                extractedBgUrl = '';
+            } else if (bgImage.startsWith('url(')) {
+                extractedBgUrl = bgImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+            } else if (!bgImage.includes('gradient')) {
+                extractedBgUrl = bgImage;
+            }
+        }
+
+        if (campaign.modalConfig) {
+            if (rootLayer.style.backgroundColor) campaign.modalConfig.backgroundColor = rootLayer.style.backgroundColor;
+            if (extractedBgUrl !== undefined) campaign.modalConfig.backgroundImageUrl = extractedBgUrl;
+            if (rootLayer.style.backgroundSize) campaign.modalConfig.backgroundSize = rootLayer.style.backgroundSize;
+            if (rootLayer.style.borderRadius) campaign.modalConfig.borderRadius = rootLayer.style.borderRadius as any;
+        }
+        if (campaign.bottomSheetConfig) {
+            if (rootLayer.style.backgroundColor) campaign.bottomSheetConfig.backgroundColor = rootLayer.style.backgroundColor;
+            if (extractedBgUrl !== undefined) campaign.bottomSheetConfig.backgroundImageUrl = extractedBgUrl;
+            if (rootLayer.style.backgroundSize) campaign.bottomSheetConfig.backgroundSize = rootLayer.style.backgroundSize;
+            if (rootLayer.style.borderRadius) campaign.bottomSheetConfig.borderRadius = rootLayer.style.borderRadius as any;
+        }
+        if (campaign.bannerConfig) {
+            if (rootLayer.style.backgroundColor) campaign.bannerConfig.backgroundColor = rootLayer.style.backgroundColor;
+            if (extractedBgUrl !== undefined) campaign.bannerConfig.backgroundImageUrl = extractedBgUrl;
+            if (rootLayer.style.backgroundSize) campaign.bannerConfig.backgroundSize = rootLayer.style.backgroundSize;
+            if (rootLayer.style.borderRadius) campaign.bannerConfig.borderRadius = rootLayer.style.borderRadius as any;
+        }
+    }
+
+    const config = buildConfigFromLayers(campaign);
+
+    config.displayRules = campaign.displayRules;
+    if (campaign.modalConfig) config.modalConfig = campaign.modalConfig;
+    if (campaign.bottomSheetConfig) config.bottomSheetConfig = campaign.bottomSheetConfig;
+    if (campaign.tooltipConfig) {
+        const tc = campaign.tooltipConfig;
+        if (tc.coachmarkEnabled) {
+            // COACHMARK MODE: Only send coachmark-related fields + targeting (saves space)
+            config.tooltipConfig = {
+                // Targeting (always needed)
+                targetPageId: tc.targetPageId,
+                targetElementId: tc.targetElementId,
+                // Coachmark core
+                coachmarkEnabled: true,
+                coachmarkShape: tc.coachmarkShape,
+                overlayColor: tc.overlayColor,
+                overlayOpacity: tc.overlayOpacity,
+                dismissEnabled: tc.dismissEnabled,
+                // Fine Tune Position & Size (CRITICAL: must be sent for SDK parity)
+                targetOffsetX: tc.targetOffsetX,
+                targetOffsetY: tc.targetOffsetY,
+                targetWidthAdjustment: tc.targetWidthAdjustment,
+                targetHeightAdjustment: tc.targetHeightAdjustment,
+                // Target styling (needed for highlight padding/roundness in coachmark)
+                targetHighlightPadding: tc.targetHighlightPadding,
+                targetRoundness: tc.targetRoundness,
+                // Wave data ONLY if shape is wave
+                ...(tc.coachmarkShape === 'wave' ? {
+                    waveOrigin: tc.waveOrigin,
+                    waveCoverage: tc.waveCoverage,
+                    waveCurvature: tc.waveCurvature,
+                } : {}),
+                // Spotlight settings (always for coachmark)
+                spotlightWidth: tc.spotlightWidth,
+                spotlightHeight: tc.spotlightHeight,
+                spotlightPadding: tc.spotlightPadding,
+                spotlightRadius: tc.spotlightRadius,
+                spotlightBlur: tc.spotlightBlur,
+                spotlightEffect: tc.spotlightEffect,
+                spotlightEffectColor: tc.spotlightEffectColor,
+                // Ring data ONLY if ring is enabled
+                ...(tc.ringEnabled ? {
+                    ringEnabled: true,
+                    ringShape: tc.ringShape,
+                    ringColor: tc.ringColor,
+                    ringWidth: tc.ringWidth,
+                    // Rectangle mode properties
+                    ...(tc.ringShape !== 'circle' ? {
+                        ringCount: tc.ringCount,
+                        ringGap: tc.ringGap,
+                    } : {}),
+                    // Circle mode properties
+                    ...(tc.ringShape === 'circle' ? {
+                        ringCount: tc.ringCount,
+                        ringGap: tc.ringGap,
+                        ringRadius: tc.ringRadius,
+                        ringArcPercent: tc.ringArcPercent,
+                        ringArcStartAngle: tc.ringArcStartAngle,
+                    } : {}),
+                } : {}),
+                // Behavior
+                closeOnOutsideClick: tc.closeOnOutsideClick,
+                closeOnTargetClick: tc.closeOnTargetClick,
+                // Timing
+                timing: tc.timing,
+            };
+        } else {
+            // TOOLTIP MODE: Only send tooltip-related fields (no coachmark data - saves space)
+            config.tooltipConfig = {
+                // Targeting
+                targetPageId: tc.targetPageId,
+                targetElementId: tc.targetElementId,
+                showTooltipBody: tc.showTooltipBody,
+                // Tooltip body styling (only if body is visible)
+                ...(tc.showTooltipBody !== false ? {
+                    position: tc.position,
+                    offsetX: tc.offsetX,
+                    offsetY: tc.offsetY,
+                    width: tc.width,
+                    height: tc.height,
+                    widthMode: tc.widthMode,
+                    heightMode: tc.heightMode,
+                    widthUnit: tc.widthUnit,
+                    heightUnit: tc.heightUnit,
+                    backgroundColor: tc.backgroundColor,
+                    backgroundOpacity: tc.backgroundOpacity,
+                    backgroundImageUrl: tc.backgroundImageUrl,
+                    backgroundSize: tc.backgroundSize,
+                    borderRadius: tc.borderRadius,
+                } : {}),
+                // Arrow data ONLY if arrow is shown
+                ...(tc.showArrow !== false ? {
+                    showArrow: true,
+                    arrowSize: tc.arrowSize,
+                    arrowColor: tc.arrowColor,
+                    arrowPositionPercent: tc.arrowPositionPercent,
+                    arrowRoundness: tc.arrowRoundness,
+                } : { showArrow: false }),
+                // Target styling ONLY if enabled
+                ...(tc.targetStyleEnabled !== false ? {
+                    targetStyleEnabled: true,
+                    targetHighlightPadding: tc.targetHighlightPadding,
+                    targetRoundness: tc.targetRoundness,
+                    targetOffsetX: tc.targetOffsetX,
+                    targetOffsetY: tc.targetOffsetY,
+                    targetWidthAdjustment: tc.targetWidthAdjustment,
+                    targetHeightAdjustment: tc.targetHeightAdjustment,
+                    // Border ONLY if enabled
+                    ...(tc.targetBorderEnabled !== false ? {
+                        targetBorderEnabled: true,
+                        targetBorderWidth: tc.targetBorderWidth,
+                        targetBorderColor: tc.targetBorderColor,
+                        targetBorderStyle: tc.targetBorderStyle,
+                    } : {}),
+                    // Shadow ONLY if enabled
+                    ...(tc.targetShadowEnabled ? {
+                        targetShadowEnabled: true,
+                        targetShadowColor: tc.targetShadowColor,
+                        targetShadowBlur: tc.targetShadowBlur,
+                        targetShadowSpread: tc.targetShadowSpread,
+                    } : {}),
+                } : { targetStyleEnabled: false }),
+                // Overlay ONLY if enabled
+                ...(tc.overlayEnabled !== false ? {
+                    overlayEnabled: true,
+                    overlayColor: tc.overlayColor,
+                    overlayOpacity: tc.overlayOpacity,
+                } : { overlayEnabled: false }),
+                // Behavior
+                closeOnOutsideClick: tc.closeOnOutsideClick,
+                closeOnTargetClick: tc.closeOnTargetClick,
+                autoScrollToTarget: tc.autoScrollToTarget,
+                timelineMode: tc.timelineMode,
+                // Timing
+                timing: tc.timing,
+            };
+        }
+    }
+    if (campaign.bannerConfig) config.bannerConfig = campaign.bannerConfig;
+    if (campaign.scratchCardConfig) config.scratchCardConfig = campaign.scratchCardConfig;
+    if (campaign.spinTheWheelConfig) config.spinTheWheelConfig = campaign.spinTheWheelConfig;
+    if (campaign.fullscreenConfig) config.fullscreenConfig = campaign.fullscreenConfig;
+
+    return {
+        id: campaign.id,
+        name: campaign.name,
+        type: campaign.nudgeType,                         // nudge widget type (modal, banner…)
+        campaignType: campaign.type || 'nudge',           // Phase 2: nudge | challenge
+        challengeDetails: campaign.challengeDetails,       // Phase 2: full gamification config
+        interfaces: (campaign.interfaces || []).map(int => ({
+            id: int.id,
+            name: int.name,
+            nudgeType: int.nudgeType,
+            // Explicitly preserve config based on nudgeType to prevent data stripping
+            ...(int.nudgeType === 'modal' && int.modalConfig ? { modalConfig: int.modalConfig } : {}),
+            ...(int.nudgeType === 'bottomsheet' && int.bottomSheetConfig ? { bottomSheetConfig: int.bottomSheetConfig } : {}),
+            ...(int.nudgeType === 'banner' && int.bannerConfig ? { bannerConfig: int.bannerConfig } : {}),
+            ...(int.nudgeType === 'tooltip' && int.tooltipConfig ? { tooltipConfig: int.tooltipConfig } : {}),
+            ...(int.nudgeType === 'pip' && int.pipConfig ? { pipConfig: int.pipConfig } : {}),
+            ...(int.nudgeType === 'floater' && int.floaterConfig ? { floaterConfig: int.floaterConfig } : {}),
+            ...(int.scratchCardConfig ? { scratchCardConfig: int.scratchCardConfig } : {}),
+            ...(int.spinTheWheelConfig ? { spinTheWheelConfig: int.spinTheWheelConfig } : {}),
+            ...((int.nudgeType === 'fullscreen' || int.nudgeType === 'fullpage') && int.fullscreenConfig ? { fullscreenConfig: int.fullscreenConfig } : {}),
+            layers: int.layers || [],
+            createdAt: int.createdAt,
+            updatedAt: int.updatedAt,
+        })), // ✅ FIX: explicitly map and preserve interface configs
+        experience: campaign.experienceType, // ✅ FIX: Send experience type
+        status: campaign.status || 'draft', // ✅ FIX: Pass status directly (active|paused|draft)
+        trigger: campaign.trigger || extractTriggerFromTargeting(campaign.targeting), // ✅ FIX: Prefer direct trigger
+        rules,
+        // ✅ FIX: Exclude the primary trigger from targeting if count is 1
+        // Otherwise, backend treats the trigger as a strict historical prerequisite
+        // and blocks the campaign from ever reaching the device!
+        targeting: (campaign.targeting || []).filter(r => {
+            const isTrigger = r.type === 'event' && r.event === (campaign.trigger || extractTriggerFromTargeting(campaign.targeting));
+            const isJustTriggering = r.count === 1 && 
+                                     r.countOperator === 'greater_than_or_equal' &&
+                                     (!r.properties || r.properties.length === 0);
+            return !(isTrigger && isJustTriggering);
+        }),
+        tags: campaign.tags || [], // ✅ FIX: Include tags in backend payload
+        schedule: campaign.schedule ? {
+            start_date: campaign.schedule.startDate,
+            end_date: campaign.schedule.endDate,
+            timezone: campaign.schedule.timeZone
+        } : undefined, // ✅ FIX: Map to snake_case for backend
+        // ✅ FIX: Map Display Rules to Backend Schema (Preserve full object)
+        display_rules: {
+            ...campaign.displayRules,
+            // Map legacy fields for backend compatibility
+            frequency_cap: campaign.displayRules.interactionLimit.type === 'limited' ? (campaign.displayRules.interactionLimit.value || 1) : null,
+            session_cap: campaign.displayRules.sessionLimit.enabled ? (campaign.displayRules.sessionLimit.value || 1) : null,
+            cooldown: campaign.displayRules.frequency.type === 'custom' ? (campaign.displayRules.frequency.value || 0) : 0,
+            ignore_global_rules: campaign.displayRules.overrideGlobal || false,
+        },
+        stories: campaign.stories || [], // ✅ FIX: Include stories
+        goal: campaign.goal || {}, // ✅ FIX: Include goal
+        config,
+        // ✅ FIX: Do NOT completely strip the root container because it contains interactions and actions
+        // set by the user (like clicking the container -> interface). The mobile SDK can handle it as a child.
+        layers: campaign.nudgeType === 'bottomsheet'
+            ? campaign.layers
+                .map(layer => {
+                    // ✅ FIX: Sync ALL visual properties from BottomSheetConfig to ROOT Container Layer
+                    if (layer.type === 'container' && !layer.parent && campaign.bottomSheetConfig) {
+                        const bsConfig = campaign.bottomSheetConfig;
+
+                        return {
+                            ...layer,
+                            size: {
+                                ...layer.size,
+                                // Sync height/width from config if set
+                                ...(bsConfig.height && { height: bsConfig.height }),
+                            },
+                            style: {
+                                ...layer.style,
+                                // 1. Background (Image & Color)
+                                ...(bsConfig.backgroundImageUrl && {
+                                    backgroundImage: bsConfig.backgroundImageUrl,
+                                    backgroundSize: bsConfig.backgroundSize || 'cover',
+                                    backgroundPosition: bsConfig.backgroundPosition || 'center',
+                                    backgroundRepeat: 'no-repeat'
+                                }),
+                                ...(bsConfig.backgroundColor && { backgroundColor: bsConfig.backgroundColor }),
+
+                                // 2. Borders
+                                ...(bsConfig.borderRadius && {
+                                    borderRadius: typeof bsConfig.borderRadius === 'object'
+                                        ? bsConfig.borderRadius
+                                        : {
+                                            topLeft: bsConfig.borderRadius,
+                                            topRight: bsConfig.borderRadius,
+                                            bottomLeft: 0,
+                                            bottomRight: 0
+                                        }
+                                }),
+
+                                // 3. Shadows (Elevation)
+                                ...(bsConfig.elevation !== undefined && {
+                                    boxShadow: bsConfig.customShadow || (bsConfig.elevation > 0
+                                        ? `0px ${bsConfig.elevation * 4}px ${bsConfig.elevation * 8}px rgba(0,0,0,${0.1 + (bsConfig.elevation * 0.05)})`
+                                        : undefined)
+                                }),
+                            }
+                        } as Layer;
+                    }
+                    return layer;
+                })
+            : campaign.layers.map(layer => {
+                // ✅ FIX: Sync ALL visual properties from Config to ROOT Container Layer
+                if (layer.type === 'container' && !layer.parent) {
+                    // 1. Bottom Sheet Config Sync
+                    if (campaign.bottomSheetConfig) {
+                        const bsConfig = campaign.bottomSheetConfig;
+                        return {
+                            ...layer,
+                            size: {
+                                ...layer.size,
+                                ...(bsConfig.height && { height: bsConfig.height }),
+                            },
+                            style: {
+                                ...layer.style,
+                                ...(bsConfig.backgroundImageUrl && {
+                                    backgroundImage: bsConfig.backgroundImageUrl,
+                                    backgroundSize: bsConfig.backgroundSize || 'cover',
+                                    backgroundPosition: bsConfig.backgroundPosition || 'center',
+                                    backgroundRepeat: 'no-repeat'
+                                }),
+                                ...(bsConfig.backgroundColor && { backgroundColor: bsConfig.backgroundColor }),
+                                ...(bsConfig.borderRadius && {
+                                    borderRadius: typeof bsConfig.borderRadius === 'object'
+                                        ? bsConfig.borderRadius
+                                        : {
+                                            topLeft: bsConfig.borderRadius,
+                                            topRight: bsConfig.borderRadius,
+                                            bottomLeft: 0,
+                                            bottomRight: 0
+                                        }
+                                }),
+                                ...(bsConfig.elevation !== undefined && {
+                                    boxShadow: bsConfig.customShadow || (bsConfig.elevation > 0
+                                        ? `0px ${bsConfig.elevation * 4}px ${bsConfig.elevation * 8}px rgba(0,0,0,${0.1 + (bsConfig.elevation * 0.05)})`
+                                        : undefined)
+                                }),
+                            }
+                        } as Layer;
+                    }
+
+                    // 2. Modal Config Sync (CRITICAL FIX)
+                    if (campaign.modalConfig) {
+                        const mc = campaign.modalConfig;
+                        return {
+                            ...layer,
+                            size: {
+                                ...layer.size,
+                                // Sync Width/Height
+                                ...(mc.width && { width: mc.width }),
+                                ...(mc.height && { height: mc.height }),
+                            },
+                            style: {
+                                ...layer.style,
+                                // Background
+                                ...(mc.backgroundImageUrl && {
+                                    backgroundImage: mc.backgroundImageUrl,
+                                    backgroundSize: mc.backgroundSize || 'cover',
+                                    backgroundPosition: mc.backgroundPosition || 'center',
+                                    backgroundRepeat: 'no-repeat'
+                                }),
+                                ...(mc.backgroundColor && { backgroundColor: mc.backgroundColor }),
+
+                                // Border & Radius
+                                ...(mc.borderRadius && { borderRadius: mc.borderRadius }),
+
+                                // Shadow
+                                ...(mc.elevation !== undefined && {
+                                    boxShadow: mc.elevation > 0
+                                        ? `0px ${mc.elevation * 4}px ${mc.elevation * 8}px rgba(0,0,0,${0.1 + (mc.elevation * 0.05)})`
+                                        : undefined
+                                }),
+                            }
+                        } as Layer;
+                    }
+                }
+                return layer;
+            }),
+        createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+    };
+}
+
+/**
+ * Transform backend Campaign to frontend CampaignEditor format
+ */
+export function backendToEditor(backendCampaign: any): CampaignEditor {
+    console.log('backendToEditor: Converting campaign:', backendCampaign.id || backendCampaign._id);
+    console.log('backendToEditor: Raw type:', backendCampaign.type, 'Config type:', backendCampaign.config?.type);
+
+    const campaignId = backendCampaign.id || backendCampaign._id || `campaign_${Date.now()}`;
+    const campaignName = backendCampaign.name || backendCampaign.campaign_name || 'Untitled Campaign';
+
+    // ✅ IMPROVED: Robust Type Detection
+    // 1. Check root `type`
+    // 2. Check `config.type`
+    // 3. Infer from config structure (heuristic)
+    // 4. Fallback to 'modal'
+    let campaignType = backendCampaign.type || (backendCampaign.config && backendCampaign.config.type);
+    if (!campaignType) {
+        if (backendCampaign.config?.height || backendCampaign.config?.mode) {
+            campaignType = 'bottomsheet';
+        } else if (backendCampaign.config?.position) {
+            // Heuristic: PIP usually has position (top-right, etc), Banner has specific ones too
+            campaignType = 'modal'; // Default to modal if ambiguous
+        } else {
+            campaignType = 'modal';
+        }
+    }
+    // Normalize type
+    campaignType = campaignType.toLowerCase();
+
+    const campaignStatus = backendCampaign.status || 'draft';
+    const campaignTrigger = backendCampaign.trigger || backendCampaign.trigger_event || 'session_start';
+    const campaignRules = backendCampaign.rules || [];
+
+    let layers: Layer[] = [];
+    if (backendCampaign.layers && backendCampaign.layers.length > 0) {
+        console.log('backendToEditor: Using direct layers from backend');
+        layers = backendCampaign.layers.filter((l: Layer) => l.type !== 'handle');
+    } else {
+        console.log(`backendToEditor: Reconstructing layers from config for type: ${campaignType}`);
+        layers = reconstructLayersFromConfig(backendCampaign.config || {}, campaignType);
+    }
+
+    // ✅ FIX: Use preserved targeting object if available, otherwise reconstruct
+    const targeting = backendCampaign.targeting && backendCampaign.targeting.length > 0
+        ? backendCampaign.targeting
+        : reconstructTargetingRules(campaignRules, campaignTrigger);
+
+    const bottomSheetConfig = campaignType === 'bottomsheet'
+        ? extractBottomSheetConfig(backendCampaign.config || {})
+        : undefined;
+
+    const modalConfig = campaignType === 'modal' || !campaignType
+        ? (backendCampaign.config?.modalConfig || extractModalConfig(backendCampaign.config || {}))
+        : undefined;
+
+    const bannerConfig = campaignType === 'banner'
+        ? (backendCampaign.config?.bannerConfig || extractBannerConfig(backendCampaign.config || {}))
+        : undefined;
+
+    const scratchCardConfig = backendCampaign.config?.scratchCardConfig || 
+        (campaignType === 'scratchcard' ? extractScratchCardConfig(backendCampaign.config || {}) : undefined);
+
+    const isSpinTheWheel = backendCampaign.campaignType === 'spinthewheel' || backendCampaign.type === 'spinthewheel' || backendCampaign.config?.campaignType === 'spinthewheel';
+    const spinTheWheelConfig = isSpinTheWheel
+        ? (() => {
+            const rawConfig = backendCampaign.config?.spinTheWheelConfig || backendCampaign.spinTheWheelConfig || {};
+            return {
+                winningCriteria: rawConfig.winningCriteria ?? backendCampaign.config?.winningCriteria ?? 'weight',
+                sections: rawConfig.sections ?? backendCampaign.config?.sections ?? [],
+                sectionWinLimit: rawConfig.sectionWinLimit ?? backendCampaign.config?.sectionWinLimit,
+                maxAttempts: rawConfig.maxAttempts ?? backendCampaign.config?.maxAttempts,
+                timing: rawConfig.timing ?? backendCampaign.config?.timing ?? { delay: 0, duration: 0 },
+            };
+        })()
+        : undefined;
+
+    const fullscreenConfig = (campaignType === 'fullscreen' || campaignType === 'fullpage')
+        ? (() => {
+            const rawConfig = backendCampaign.config?.fullscreenConfig || backendCampaign.fullscreenConfig || {};
+            return {
+                showCloseButton: rawConfig.showCloseButton ?? backendCampaign.config?.showCloseButton ?? true,
+                backgroundColor: rawConfig.backgroundColor ?? backendCampaign.config?.backgroundColor ?? '#ffffff',
+                media: rawConfig.media ?? backendCampaign.config?.media ?? { type: 'none', url: '' },
+                padding: rawConfig.padding ?? backendCampaign.config?.padding ?? { top: 0, right: 0, bottom: 0, left: 0 },
+                alignItems: rawConfig.alignItems ?? backendCampaign.config?.alignItems ?? 'center',
+                justifyContent: rawConfig.justifyContent ?? backendCampaign.config?.justifyContent ?? 'flex-end',
+                animation: rawConfig.animation ?? backendCampaign.config?.animation,
+                closeIcon: rawConfig.closeIcon ?? backendCampaign.config?.closeIcon,
+                timing: rawConfig.timing ?? backendCampaign.config?.timing ?? { delay: 0, duration: 0 },
+                controls: rawConfig.controls ?? backendCampaign.config?.controls,
+                behavior: rawConfig.behavior ?? backendCampaign.config?.behavior,
+            };
+        })()
+        : undefined;
+
+    // ✅ FIX: Add floaterConfig extraction (FULL PARITY - must match buildConfigFromLayers)
+    const floaterConfig = campaignType === 'floater'
+        ? (() => {
+            const rawConfig = backendCampaign.config?.floaterConfig || backendCampaign.floaterConfig || {};
+            return {
+                width: rawConfig.width ?? backendCampaign.config?.width ?? 280,
+                height: rawConfig.height ?? backendCampaign.config?.height ?? 180,
+                backgroundColor: rawConfig.backgroundColor ?? backendCampaign.config?.backgroundColor ?? '#000000',
+                backgroundImageUrl: rawConfig.backgroundImageUrl ?? backendCampaign.config?.backgroundImageUrl,
+                backgroundSize: rawConfig.backgroundSize ?? backendCampaign.config?.backgroundSize ?? 'cover',
+                borderRadius: rawConfig.borderRadius ?? backendCampaign.config?.borderRadius ?? 0,
+                shape: rawConfig.shape ?? backendCampaign.config?.shape,
+                position: rawConfig.position ?? backendCampaign.config?.position ?? 'bottom-right',
+                offsetX: rawConfig.offsetX ?? backendCampaign.config?.offsetX ?? 20,
+                offsetY: rawConfig.offsetY ?? backendCampaign.config?.offsetY ?? 20,
+                showCloseButton: rawConfig.showCloseButton ?? backendCampaign.config?.showCloseButton ?? false,
+                controls: rawConfig.controls ?? backendCampaign.config?.controls,
+                media: rawConfig.media ?? backendCampaign.config?.media,
+                animation: rawConfig.animation ?? backendCampaign.config?.animation,
+                draggable: rawConfig.draggable ?? backendCampaign.config?.draggable ?? true,
+                snapToCorner: rawConfig.snapToCorner ?? backendCampaign.config?.snapToCorner ?? true,
+                dismissOnTapOutside: rawConfig.dismissOnTapOutside ?? backendCampaign.config?.dismissOnTapOutside,
+                doubleTapToDismiss: rawConfig.doubleTapToDismiss ?? backendCampaign.config?.doubleTapToDismiss ?? false,
+                backdrop: rawConfig.backdrop ?? backendCampaign.config?.backdrop,
+                overlay: rawConfig.overlay ?? backendCampaign.config?.overlay,
+                backdropFilter: rawConfig.backdropFilter ?? backendCampaign.config?.backdropFilter,
+                glassmorphism: rawConfig.glassmorphism ?? backendCampaign.config?.glassmorphism,
+                shadow: rawConfig.shadow ?? backendCampaign.config?.shadow,
+                timing: rawConfig.timing ?? backendCampaign.config?.timing ?? { delay: 0, duration: 0 },
+            };
+        })()
+        : undefined;
+
+    // ✅ FIX: Add pipConfig extraction
+    const pipConfig = campaignType === 'pip'
+        ? (() => {
+            const rawConfig = backendCampaign.config?.pipConfig || backendCampaign.pipConfig || {};
+            return {
+                width: rawConfig.width ?? backendCampaign.config?.width ?? 160,
+                height: rawConfig.height ?? backendCampaign.config?.height ?? 220,
+                backgroundColor: rawConfig.backgroundColor ?? backendCampaign.config?.backgroundColor ?? 'black',
+                cornerRadius: rawConfig.cornerRadius ?? backendCampaign.config?.cornerRadius ?? 12,
+                position: rawConfig.position ?? backendCampaign.config?.position ?? 'bottom-right',
+                showCloseButton: rawConfig.showCloseButton ?? backendCampaign.config?.showCloseButton ?? true,
+                timing: rawConfig.timing ?? backendCampaign.config?.timing ?? { delay: 0, duration: 0 },
+            };
+        })()
+        : undefined;
+    // Sync configurations back to root container layer style so ContainerEditor displays them correctly
+    layers = layers.map(layer => {
+        if (layer.type === 'container' && !layer.parent) {
+            const conf: any = campaignType === 'bottomsheet' ? bottomSheetConfig : (campaignType === 'banner' ? bannerConfig : modalConfig);
+            if (conf) {
+                let normalizedRadius = layer.style?.borderRadius;
+                if (typeof conf.borderRadius === 'object') {
+                    normalizedRadius = conf.borderRadius.topLeft ?? conf.borderRadius.bottomLeft ?? conf.borderRadius.topRight ?? conf.borderRadius.bottomRight ?? 0;
+                } else if (conf.borderRadius !== undefined) {
+                    normalizedRadius = conf.borderRadius;
+                }
+                
+                return {
+                    ...layer,
+                    style: {
+                        ...layer.style,
+                        backgroundColor: conf.backgroundColor || layer.style?.backgroundColor,
+                        ...((conf.backgroundImageUrl) && {
+                            backgroundImage: conf.backgroundImageUrl.startsWith('url(') ? conf.backgroundImageUrl : `url(${conf.backgroundImageUrl})`,
+                            backgroundSize: conf.backgroundSize || 'cover',
+                        }),
+                        borderRadius: normalizedRadius,
+                        ...(conf.height && { height: conf.height }),
+                        ...(conf.width && { width: conf.width }),
+                    }
+                };
+            }
+        }
+        return layer;
+    });
+
+    const result = {
+        id: campaignId,
+        name: campaignName,
+        type: (backendCampaign.campaignType || 'nudge') as any, // ✅ Phase 2 Gamification: 'nudge' | 'challenge'
+        challengeDetails: backendCampaign.challengeDetails || undefined, // ✅ Phase 2 Gamification: Extract config
+        nudgeType: campaignType as any,
+        experienceType: (backendCampaign.experience || 'nudges') as any, // ✅ FIX: Restore experience type
+        status: campaignStatus === 'inactive' ? 'paused' : campaignStatus, // ✅ FIX: Map inactive -> paused
+        layers,
+        targeting,
+        tags: backendCampaign.tags || [], // ✅ FIX: Restore tags from backend
+        schedule: backendCampaign.schedule ? {
+            startDate: backendCampaign.schedule.start_date,
+            endDate: backendCampaign.schedule.end_date,
+            timeZone: backendCampaign.schedule.timezone
+        } : undefined, // ✅ FIX: Map from snake_case to camelCase
+        bottomSheetConfig,
+        modalConfig,
+        bannerConfig,
+        scratchCardConfig,
+        floaterConfig,
+        pipConfig,
+        spinTheWheelConfig,
+        fullscreenConfig,
+
+        tooltipConfig: campaignType === 'tooltip' ? (() => {
+            const tc = backendCampaign.config?.tooltipConfig || {};
+            return {
+                ...tc,
+                // Fallback/Legacy migration: check if properties exist on root config
+                targetPageId: tc.targetPageId ?? backendCampaign.config?.targetPageId,
+                targetElementId: tc.targetElementId ?? backendCampaign.config?.targetElementId,
+                position: tc.position ?? backendCampaign.config?.position,
+                maxWidth: tc.maxWidth ?? backendCampaign.config?.maxWidth,
+                width: tc.width ?? backendCampaign.config?.width,
+                height: tc.height ?? backendCampaign.config?.height,
+                timing: tc.timing ?? backendCampaign.config?.timing ?? { delay: 0, duration: 0 },
+            };
+        })() : undefined,
+        // Store other configs dynamically if needed in future
+        // ✅ FIX: Restore Display Rules, Stories, and Goals from Backend
+        // Robust merging with defaults to prevent crashes if nested fields are missing
+        displayRules: (() => {
+            const defaults = getDefaultDisplayRules();
+            let rawBackend = backendCampaign.display_rules || backendCampaign.config?.displayRules || {};
+            
+            // Ensure fromBackend is an object
+            const fromBackend = (typeof rawBackend === 'object' && rawBackend !== null) ? rawBackend : {};
+
+            console.log('backendToEditor: Merging displayRules', { 
+                hasBackend: !!backendCampaign.display_rules,
+                backendType: typeof rawBackend,
+                frequency: fromBackend.frequency 
+            });
+
+            // Defensive merging: Only spread if the property is actually an object
+            const safeMerge = (key: string) => {
+                const backVal = fromBackend[key];
+                const defVal = (defaults as any)[key];
+                if (backVal && typeof backVal === 'object' && !Array.isArray(backVal)) {
+                    return { ...defVal, ...backVal };
+                }
+                return defVal;
+            };
+
+            // ✅ FIX: Load legacy trigger_screens array or trigger_screen string into pages
+            let pagesFallback = defaults.pages;
+            const backendTriggerScreens = (backendCampaign as any).trigger_screens;
+            const backendTriggerScreen = (backendCampaign as any).trigger_screen;
+            
+            if (fromBackend.pages && Array.isArray(fromBackend.pages) && fromBackend.pages.length > 0) {
+                pagesFallback = fromBackend.pages;
+            } else if (Array.isArray(backendTriggerScreens) && backendTriggerScreens.length > 0 && backendTriggerScreens[0] !== 'all') {
+                pagesFallback = backendTriggerScreens;
+            } else if (typeof backendTriggerScreen === 'string' && backendTriggerScreen !== 'all' && backendTriggerScreen.trim() !== '') {
+                pagesFallback = [backendTriggerScreen];
+            }
+
+            const merged = {
+                ...defaults,
+                ...fromBackend,
+                pages: pagesFallback,
+                frequency: safeMerge('frequency'),
+                interactionLimit: safeMerge('interactionLimit'),
+                sessionLimit: safeMerge('sessionLimit'),
+            };
+            console.log('backendToEditor: Merged displayRules frequency:', merged.frequency);
+            return merged;
+        })(),
+        stories: backendCampaign.stories || [],
+        goal: backendCampaign.goal || {},
+        interfaces: (backendCampaign.interfaces || []).map((iface: any) => ({
+            id: iface.id,
+            name: iface.name,
+            nudgeType: iface.nudgeType,
+            layers: iface.layers || [],
+            // Transform configs based on nudgeType - CRITICAL FIX
+            modalConfig: iface.nudgeType === 'modal' ? iface.modalConfig : undefined,
+            bottomSheetConfig: iface.nudgeType === 'bottomsheet' ? iface.bottomSheetConfig : undefined,
+            bannerConfig: iface.nudgeType === 'banner' ? iface.bannerConfig : undefined,
+            tooltipConfig: iface.nudgeType === 'tooltip' ? iface.tooltipConfig : undefined,
+            scratchCardConfig: iface.scratchCardConfig,
+            pipConfig: iface.nudgeType === 'pip' ? iface.pipConfig : undefined,
+            floaterConfig: iface.nudgeType === 'floater' ? iface.floaterConfig : undefined,
+            spinTheWheelConfig: iface.spinTheWheelConfig ? iface.spinTheWheelConfig : undefined,
+            fullscreenConfig: (iface.nudgeType === 'fullscreen' || iface.nudgeType === 'fullpage') ? iface.fullscreenConfig : undefined,
+            createdAt: iface.createdAt || new Date().toISOString(),
+            updatedAt: iface.updatedAt || new Date().toISOString(),
+        })), // ✅ CRITICAL FIX: Transform interfaces with proper config structure
+        selectedLayerId: layers[0]?.id || null, // Select first layer if exists
+        history: [layers],
+        historyIndex: 0,
+        createdAt: backendCampaign.createdAt || new Date().toISOString(),
+        updatedAt: backendCampaign.updatedAt || new Date().toISOString(),
+        lastSaved: backendCampaign.updatedAt || backendCampaign.createdAt || new Date().toISOString(),
+        isDirty: false, // Ensure we start clean
+    };
+
+    console.log('backendToEditor: Loaded interfaces count:', result.interfaces.length);
+    if (result.interfaces.length > 0) {
+        console.log('backendToEditor: First interface:', result.interfaces[0]);
+    }
+    console.log('backendToEditor: Final campaign editor:', result);
+    return result;
+}
+
+/**
+ * Extract trigger event from targeting rules
+ */
+function extractTriggerFromTargeting(targeting: TargetingRule[]): string {
+    // Find first event-based rule
+    const eventRule = targeting.find(rule => rule.type === 'event');
+    return eventRule?.event || 'page_view';
+}
+
+/**
+ * Transform frontend TargetingRule[] to backend Rule[]
+ */
+function transformTargetingRules(targeting: TargetingRule[]): BackendRule[] {
+    return targeting
+        .filter(rule => rule.type === 'user_property' || rule.type === 'event')
+        .map((rule, index) => ({
+            id: index + 1,
+            type: rule.type === 'user_property' ? 'attribute' : 'event',
+            field: rule.property || rule.eventProperty || 'unknown',
+            operator: mapOperator(rule.operator || 'equals'),
+            value: String(rule.value || ''),
+        }));
+}
+
+/**
+ * Map frontend operators to backend operators
+ */
+function mapOperator(op: string): BackendRule['operator'] {
+    const mapping: Record<string, BackendRule['operator']> = {
+        'equals': '==',
+        'not_equals': '!=',
+        'greater_than': '>',
+        'less_than': '<',
+        'contains': 'contains',
+    };
+    return mapping[op] || '==';
+}
+
+/**
+ * Build config object from layers and bottom sheet config
+ * Extract ALL styling properties for Flutter renderer
+ */
+function buildConfigFromLayers(campaign: CampaignEditor): Record<string, any> {
+    const config: Record<string, any> = {
+        type: campaign.nudgeType,
+    };
+
+    // ✅ FIX: Merge Source-of-Truth Configs (Modal/BottomSheet) directly
+    // This ensures settings from the Editor Side Panel are ALWAYS sent, 
+    // regardless of matching layer names or structure.
+    if (campaign.nudgeType === 'modal') {
+        const mc = campaign.modalConfig || extractModalConfig({}); // Fallback to defaults
+        Object.assign(config, {
+            width: mc.width,
+            height: mc.height,
+            backgroundColor: mc.backgroundColor,
+            backgroundImageUrl: mc.backgroundImageUrl,
+            backgroundSize: mc.backgroundSize,
+            backgroundPosition: mc.backgroundPosition,
+            borderRadius: mc.borderRadius,
+            elevation: mc.elevation,
+            showCloseButton: mc.showCloseButton,
+            overlay: mc.overlay, // Pass full overlay object
+            // Flatten some for legacy SDK support if needed
+            dismissOnClick: mc.overlay?.dismissOnClick,
+            overlayColor: mc.overlay?.color,
+            overlayOpacity: mc.overlay?.opacity,
+            timing: mc.timing,
+        });
+    }
+
+    if (campaign.nudgeType === 'bottomsheet') {
+        // Robust fallback: If config missing, create default
+        const bsc = campaign.bottomSheetConfig || extractBottomSheetConfig({});
+
+        console.log('buildConfigFromLayers: Processing BottomSheet Config', {
+            hasConfig: !!campaign.bottomSheetConfig,
+            height: bsc.height,
+            bg: bsc.backgroundColor
+        });
+
+        Object.assign(config, {
+            height: bsc.height || 'auto',
+            backgroundColor: bsc.backgroundColor || '#FFFFFF',
+            backgroundImageUrl: bsc.backgroundImageUrl,
+            backgroundSize: bsc.backgroundSize,
+            backgroundPosition: bsc.backgroundPosition,
+            borderRadius: bsc.borderRadius, // Object or number
+            elevation: bsc.elevation,
+            showCloseButton: bsc.showCloseButton,
+            dragHandle: bsc.dragHandle,
+            swipeToDismiss: bsc.swipeToDismiss,
+            overlay: bsc.overlay,
+            dismissOnClick: bsc.overlay?.dismissOnClick ?? true,
+            overlayColor: bsc.overlay?.color,
+            overlayOpacity: bsc.overlay?.opacity,
+            timing: bsc.timing,
+        });
+    }
+
+    // ✅ FIX: Add Banner config flattening  
+    if (campaign.nudgeType === 'banner' && campaign.bannerConfig) {
+        const bc = campaign.bannerConfig;
+        Object.assign(config, {
+            width: bc.width,
+            height: bc.height,
+            backgroundColor: bc.backgroundColor,
+            backgroundImageUrl: bc.backgroundImageUrl,
+            backgroundSize: bc.backgroundSize,
+            backgroundPosition: bc.backgroundPosition,
+            borderRadius: bc.borderRadius,
+            elevation: bc.elevation,
+            position: bc.position,
+            timing: bc.timing,
+        });
+    }
+
+    // ✅ FIX: Add ScratchCard config flattening
+    if (campaign.nudgeType === 'scratchcard' && campaign.scratchCardConfig) {
+        const sc = campaign.scratchCardConfig;
+        Object.assign(config, {
+            width: sc.width,
+            height: sc.height,
+            backgroundColor: sc.backgroundColor,
+            backgroundImageUrl: sc.backgroundImageUrl,
+            backgroundSize: sc.backgroundSize,
+            borderRadius: sc.borderRadius,
+            coverType: sc.coverType,
+            coverColor: sc.coverColor,
+            coverImage: sc.coverImage,
+            scratchSize: sc.scratchSize,
+            revealThreshold: sc.revealThreshold,
+            autoReveal: sc.autoReveal,
+            rewardId: sc.rewardId,
+            fallbackRewardState: sc.fallbackRewardState,
+            position: sc.position,
+            completionAnimation: sc.completionAnimation,
+            overlay: sc.overlay,
+            timing: sc.timing,
+        });
+    }
+
+    // ✅ FIX: Add SpinTheWheel config flattening
+    if (campaign.nudgeType === 'spinthewheel' && campaign.spinTheWheelConfig) {
+        const swc = campaign.spinTheWheelConfig;
+        // Extract maxAttempts from spinthewheel layer content (where SpinTheWheelEditor stores it)
+        const stwLayer = campaign.layers.find(l => l.type === 'spinthewheel');
+        const maxAttempts = (stwLayer?.content as any)?.maxAttempts ?? swc.maxAttempts;
+        Object.assign(config, {
+            winningCriteria: swc.winningCriteria,
+            sections: swc.sections,
+            sectionWinLimit: swc.sectionWinLimit,
+            maxAttempts: maxAttempts,
+            timing: swc.timing,
+        });
+    }
+
+    // ✅ FIX: Add Fullscreen/Fullpage config flattening
+    if ((campaign.nudgeType === 'fullscreen' || campaign.nudgeType === 'fullpage') && campaign.fullscreenConfig) {
+        const fc = campaign.fullscreenConfig;
+        Object.assign(config, {
+            showCloseButton: fc.showCloseButton,
+            backgroundColor: fc.backgroundColor,
+            backgroundImageUrl: fc.media?.url,
+            media: fc.media,
+            padding: fc.padding,
+            alignItems: fc.alignItems,
+            justifyContent: fc.justifyContent,
+            animation: fc.animation,
+            closeIcon: fc.closeIcon,
+            timing: fc.timing,
+            controls: fc.controls,
+            behavior: fc.behavior,
+            doubleTapToDismiss: fc.behavior?.doubleTapToDismiss ?? false,
+            tapToDismiss: fc.behavior?.tapToDismiss ?? false,
+        });
+    }
+
+    // ✅ FIX: Add Floater config flattening (FULL PARITY)
+    if (campaign.nudgeType === 'floater' && (campaign as any).floaterConfig) {
+        const fc = (campaign as any).floaterConfig;
+        Object.assign(config, {
+            // Dimensions
+            width: fc.width,
+            height: fc.height,
+
+            // Background
+            backgroundColor: fc.backgroundColor,
+            backgroundImageUrl: fc.backgroundImageUrl,
+            backgroundSize: fc.backgroundSize,
+
+            // Border & Shape
+            borderRadius: fc.borderRadius,
+            borderWidth: fc.borderWidth,
+            borderColor: fc.borderColor,
+            borderStyle: fc.borderStyle,
+            shape: fc.shape || (fc.borderRadius >= Math.min(fc.width || 60, fc.height || 60) / 2 ? 'circle' : 'rectangle'),
+
+            // Position
+            position: fc.position,
+            offsetX: fc.offsetX,
+            offsetY: fc.offsetY,
+
+            // Close Button
+            showCloseButton: fc.showCloseButton,
+
+            // Animation (NEW)
+            animation: fc.animation, // { type: 'scale'|'slide'|'fade'|'bounce', duration: number, easing: string }
+
+            // Media/Video (NEW)
+            media: fc.media, // { url, type: 'video'|'youtube'|'image', autoPlay, muted, loop, fit }
+
+            // Controls (NEW)
+            controls: fc.controls, // { closeButton: { show, position }, expandButton: { show }, muteButton: { show }, progressBar: { show } }
+
+            // Behavior (NEW)
+            draggable: fc.draggable ?? true,
+            snapToCorner: fc.snapToCorner ?? true,
+            dismissOnTapOutside: fc.dismissOnTapOutside,
+            doubleTapToDismiss: fc.doubleTapToDismiss ?? false,
+
+            // Backdrop (NEW - also alias to 'overlay' for SDK compatibility)
+            backdrop: fc.backdrop,
+            overlay: fc.backdrop ? {
+                enabled: fc.backdrop.show ?? false,
+                color: fc.backdrop.color ?? '#000000',
+                opacity: fc.backdrop.opacity ?? 0.3,
+                blur: fc.backdrop.blur ?? 0,
+                dismissOnClick: fc.backdrop.dismissOnTap ?? false,
+            } : fc.overlay, // Fallback to existing overlay if no backdrop
+
+            // Shadow (NEW)
+            backdropFilter: fc.backdropFilter, glassmorphism: fc.glassmorphism, shadow: fc.shadow, // { enabled, blur, spread }
+            timing: fc.timing,
+        });
+    }
+
+    // ========== TEXT LAYER (Description/Body) ==========
+    const textLayer = campaign.layers.find(l => l.type === 'text' && (l.name.toLowerCase().includes('description') || l.name.toLowerCase().includes('body') || l.name === 'Text'));
+    const buttonLayer = campaign.layers.find(l => l.type === 'button');
+    const imageLayer = campaign.layers.find(l => l.type === 'media');
+    const containerLayer = campaign.layers.find(l => l.type === 'container' && (l.name === 'Bottom Sheet' || l.name === 'Modal Container'));
+    const handleLayer = campaign.layers.find(l => l.type === 'handle');
+
+    if (textLayer) {
+        config.showTitle = textLayer.visible !== false;
+        config.text = textLayer.content.text || '';
+        config.textColor = textLayer.content.textColor || '#1A1A1A';
+        config.fontSize = textLayer.content.fontSize || 17;
+        config.fontWeight = textLayer.content.fontWeight || 'w500';
+        config.lineHeight = textLayer.style?.lineHeight || 1.35;
+        config.letterSpacing = textLayer.style?.letterSpacing || -0.2;
+        config.textAlign = textLayer.content.textAlign || 'center';
+
+        // Position
+        config.textPositionX = textLayer.position?.x || 0;
+        config.textPositionY = textLayer.position?.y || 0;
+        config.textPositionType = (textLayer.position as any)?.type || 'relative';
+
+        // Background
+        config.textBackgroundColor = textLayer.style?.backgroundColor;
+
+        // Border
+        config.textBorderWidth = textLayer.style?.borderWidth || 0;
+        config.textBorderColor = textLayer.style?.borderColor;
+        config.textBorderStyle = textLayer.style?.borderStyle || 'solid';
+
+        // Border Radius (handle both number and object)
+        if (typeof textLayer.style?.borderRadius === 'object') {
+            config.textBorderRadiusTopLeft = textLayer.style.borderRadius.topLeft || 0;
+            config.textBorderRadiusTopRight = textLayer.style.borderRadius.topRight || 0;
+            config.textBorderRadiusBottomLeft = textLayer.style.borderRadius.bottomLeft || 0;
+            config.textBorderRadiusBottomRight = textLayer.style.borderRadius.bottomRight || 0;
+            config.textBorderRadius = config.textBorderRadiusTopLeft; // For backward compatibility
+        } else {
+            const radius = textLayer.style?.borderRadius || 0;
+            config.textBorderRadius = radius;
+            config.textBorderRadiusTopLeft = radius;
+            config.textBorderRadiusTopRight = radius;
+            config.textBorderRadiusBottomLeft = radius;
+            config.textBorderRadiusBottomRight = radius;
+        }
+
+        // Opacity
+        config.textOpacity = textLayer.style?.opacity !== undefined ? textLayer.style.opacity : 1.0;
+
+        // Size and constraints
+        config.textWidth = textLayer.size?.width;
+        config.textHeight = textLayer.size?.height;
+        config.textMaxWidth = textLayer.style?.maxWidth;
+        config.textMinWidth = textLayer.style?.minWidth || 0;
+        config.textMaxHeight = textLayer.style?.maxHeight;
+        config.textMinHeight = textLayer.style?.minHeight || 0;
+
+        // Display properties
+        config.textDisplay = textLayer.style?.display;
+        config.textCursor = textLayer.style?.cursor || 'default';
+        config.textOverflow = textLayer.style?.overflow;
+
+        // Padding
+        if (typeof textLayer.style?.padding === 'object') {
+            config.textPaddingTop = textLayer.style.padding.top || 0;
+            config.textPaddingRight = textLayer.style.padding.right || 0;
+            config.textPaddingBottom = textLayer.style.padding.bottom || 0;
+            config.textPaddingLeft = textLayer.style.padding.left || 0;
+        } else {
+            const padding = textLayer.style?.padding || 0;
+            config.textPaddingTop = padding;
+            config.textPaddingRight = padding;
+            config.textPaddingBottom = padding;
+            config.textPaddingLeft = padding;
+        }
+
+        // Margin (all sides)
+        if (typeof textLayer.style?.margin === 'object') {
+            config.textMarginTop = textLayer.style.margin.top || 0;
+            config.textMarginRight = textLayer.style.margin.right || 0;
+            config.textMarginBottom = textLayer.style.margin.bottom || 20;
+            config.textMarginLeft = textLayer.style.margin.left || 0;
+        } else {
+            const margin = textLayer.style?.margin || 0;
+            config.textMarginTop = margin;
+            config.textMarginRight = margin;
+            config.textMarginBottom = margin || 20;
+            config.textMarginLeft = margin;
+        }
+
+        // Filters
+        if (textLayer.style?.filter) {
+            config.textFilterBlur = textLayer.style.filter.blur || 0;
+            config.textFilterBrightness = textLayer.style.filter.brightness || 100;
+            config.textFilterContrast = textLayer.style.filter.contrast || 100;
+            config.textFilterGrayscale = textLayer.style.filter.grayscale || 0;
+        }
+
+        // Box Shadow (separate from text shadow)
+        if (textLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(textLayer.style.boxShadow);
+            config.textBoxShadowColor = shadow.color;
+            config.textBoxShadowOpacity = shadow.opacity;
+            config.textBoxShadowBlur = shadow.blur;
+            config.textBoxShadowSpread = shadow.spread;
+            config.textBoxShadowOffsetX = shadow.offsetX;
+            config.textBoxShadowOffsetY = shadow.offsetY;
+            config.textBoxShadowInset = shadow.inset;
+        }
+
+        config.textDecoration = textLayer.style?.textDecoration;
+        config.textDecorationColor = (textLayer.style as any)?.textDecorationColor;
+        config.fontStyle = textLayer.style?.fontFamily;
+        config.textTransform = textLayer.style?.textTransform;
+
+        // Text shadow
+        if ((textLayer.style as any)?.textShadow) {
+            const shadow = parseBoxShadow((textLayer.style as any).textShadow);
+            config.textShadowColor = shadow.color;
+            config.textShadowBlur = shadow.blur;
+            config.textShadowOffsetX = shadow.offsetX;
+            config.textShadowOffsetY = shadow.offsetY;
+        }
+
+        // Text transform (position/rotation)
+        if (textLayer.style?.transform) {
+            config.textTranslateX = textLayer.style.transform.translateX || 0;
+            config.textTranslateY = textLayer.style.transform.translateY || 0;
+            config.textRotate = textLayer.style.transform.rotate || 0;
+            config.textScale = textLayer.style.transform.scale || 1;
+        }
+    }
+
+    // ========== TITLE LAYER (if separate) ==========
+    const titleLayer = campaign.layers.find(l => l.type === 'text' && l.name.toLowerCase().includes('title'));
+    if (titleLayer && titleLayer !== textLayer) {
+        config.title = titleLayer.content.text || '';
+        config.titleFontSize = titleLayer.content.fontSize || 22;
+        config.titleFontWeight = titleLayer.content.fontWeight || 'w800';
+        config.titleColor = titleLayer.content.textColor || '#1A1A1A';
+        config.titleLineHeight = titleLayer.style?.lineHeight || 1.2;
+        config.titleLetterSpacing = titleLayer.style?.letterSpacing || -0.3;
+        config.titleAlign = titleLayer.content.textAlign || 'center';
+        config.titleMarginBottom = typeof titleLayer.style?.margin === 'object' ? titleLayer.style.margin.bottom : 12;
+        config.titlePositionX = titleLayer.position?.x || 0;
+        config.titlePositionY = titleLayer.position?.y || 0;
+        config.titleDecoration = titleLayer.style?.textDecoration;
+        config.titleDecorationColor = (titleLayer.style as any)?.textDecorationColor;
+        config.titleDecorationStyle = (titleLayer.style as any)?.textDecorationStyle;
+        config.titleFontStyle = titleLayer.style?.fontFamily;
+        config.titleTextTransform = titleLayer.style?.textTransform;
+
+        // Title shadow
+        if ((titleLayer.style as any)?.textShadow) {
+            const shadow = parseBoxShadow((titleLayer.style as any).textShadow);
+            config.titleShadowColor = shadow.color;
+            config.titleShadowBlur = shadow.blur;
+            config.titleShadowOffsetX = shadow.offsetX;
+            config.titleShadowOffsetY = shadow.offsetY;
+        }
+
+        // Title transform (position/rotation)
+        if (titleLayer.style?.transform) {
+            config.titleTranslateX = titleLayer.style.transform.translateX || 0;
+            config.titleTranslateY = titleLayer.style.transform.translateY || 0;
+            config.titleRotate = titleLayer.style.transform.rotate || 0;
+            config.titleScale = titleLayer.style.transform.scale || 1;
+        }
+    }
+
+    // ========== SUBTITLE LAYER (if exists) ==========
+    const subtitleLayer = campaign.layers.find(l => l.type === 'text' && l.name.toLowerCase().includes('subtitle'));
+    if (subtitleLayer) {
+        config.subtitle = subtitleLayer.content.text || '';
+        config.subtitleFontSize = subtitleLayer.content.fontSize || 16;
+        config.subtitleFontWeight = subtitleLayer.content.fontWeight || 'w600';
+        config.subtitleColor = subtitleLayer.content.textColor || '#666666';
+        config.subtitleLineHeight = subtitleLayer.style?.lineHeight || 1.3;
+        config.subtitleLetterSpacing = subtitleLayer.style?.letterSpacing || -0.2;
+        config.subtitleAlign = subtitleLayer.content.textAlign || 'center';
+        config.subtitleMarginBottom = typeof subtitleLayer.style?.margin === 'object' ? subtitleLayer.style.margin.bottom : 8;
+        config.subtitlePositionX = subtitleLayer.position?.x || 0;
+        config.subtitlePositionY = subtitleLayer.position?.y || 0;
+        config.subtitleDecoration = subtitleLayer.style?.textDecoration;
+        config.subtitleDecorationColor = (subtitleLayer.style as any)?.textDecorationColor;
+        config.subtitleFontStyle = subtitleLayer.style?.fontFamily;
+        config.subtitleTextTransform = subtitleLayer.style?.textTransform;
+
+        // Subtitle shadow
+        if ((subtitleLayer.style as any)?.textShadow) {
+            const shadow = parseBoxShadow((subtitleLayer.style as any).textShadow);
+            config.subtitleShadowColor = shadow.color;
+            config.subtitleShadowBlur = shadow.blur;
+            config.subtitleShadowOffsetX = shadow.offsetX;
+            config.subtitleShadowOffsetY = shadow.offsetY;
+        }
+
+        // Subtitle transform (position/rotation)
+        if (subtitleLayer.style?.transform) {
+            config.subtitleTranslateX = subtitleLayer.style.transform.translateX || 0;
+            config.subtitleTranslateY = subtitleLayer.style.transform.translateY || 0;
+            config.subtitleRotate = subtitleLayer.style.transform.rotate || 0;
+            config.subtitleScale = subtitleLayer.style.transform.scale || 1;
+        }
+    }
+
+    // ========== BUTTON LAYER - ALL PROPERTIES ==========
+    if (buttonLayer) {
+        config.showButton = buttonLayer.visible !== false;
+        config.buttonText = buttonLayer.content.label || '';
+        config.buttonColor = buttonLayer.style?.backgroundColor || '#4CAF50';
+        config.buttonTextColor = buttonLayer.content.textColor || (buttonLayer.style as any)?.color || '#FFFFFF';
+        config.buttonFontSize = buttonLayer.content.fontSize || 16;
+        config.buttonFontWeight = buttonLayer.content.fontWeight || 'w600';
+        config.buttonHeight = buttonLayer.size?.height || 50;
+        config.buttonWidth = buttonLayer.size?.width; // Can be null for full width
+        config.buttonBorderRadius = buttonLayer.style?.borderRadius || 12;
+        config.buttonElevation = buttonLayer.style?.boxShadow ? 2 : 0;
+        config.buttonPositionX = buttonLayer.position?.x || 0;
+        config.buttonPositionY = buttonLayer.position?.y || 0;
+        config.buttonBorderColor = buttonLayer.style?.borderColor;
+        config.buttonBorderWidth = buttonLayer.style?.borderWidth || 0;
+        config.buttonBorderStyle = buttonLayer.style?.borderStyle || 'solid';
+        config.buttonPaddingVertical = typeof buttonLayer.style?.padding === 'object'
+            ? buttonLayer.style.padding.top
+            : buttonLayer.style?.padding || 0;
+        config.buttonPaddingHorizontal = typeof buttonLayer.style?.padding === 'object'
+            ? buttonLayer.style.padding.left
+            : buttonLayer.style?.padding || 0;
+        config.buttonLetterSpacing = buttonLayer.style?.letterSpacing || 0;
+        config.buttonTextTransform = buttonLayer.style?.textTransform; // uppercase, lowercase, etc.
+
+        // Actions
+        config.buttonActionType = buttonLayer.content.action?.type || 'close';
+        config.buttonActionUrl = buttonLayer.content.action?.url;
+        config.buttonActionScreen = buttonLayer.content.action?.screenName;
+        config.buttonActionInterfaceId = buttonLayer.content.action?.interfaceId;
+
+        // Button transform (position/rotation)
+        if (buttonLayer.style?.transform) {
+            config.buttonTranslateX = buttonLayer.style.transform.translateX || 0;
+            config.buttonTranslateY = buttonLayer.style.transform.translateY || 0;
+            config.buttonRotate = buttonLayer.style.transform.rotate || 0;
+            config.buttonScale = buttonLayer.style.transform.scale || 1;
+        }
+
+        // Button shadow
+        if (buttonLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(buttonLayer.style.boxShadow);
+            config.buttonShadowColor = shadow.color;
+            config.buttonShadowOpacity = shadow.opacity;
+            config.buttonShadowBlur = shadow.blur;
+            config.buttonShadowSpread = shadow.spread;
+            config.buttonShadowOffsetX = shadow.offsetX;
+            config.buttonShadowOffsetY = shadow.offsetY;
+        }
+    }
+
+    // ========== SECONDARY BUTTON (if exists) ==========
+    const secondaryButtonLayer = campaign.layers.find(l => l.type === 'button' && l !== buttonLayer);
+    if (secondaryButtonLayer) {
+        config.secondaryButtonText = secondaryButtonLayer.content.label || '';
+        config.secondaryButtonColor = secondaryButtonLayer.style?.backgroundColor || '#E0E0E0';
+        config.secondaryButtonTextColor = secondaryButtonLayer.content.textColor || '#1A1A1A';
+        config.secondaryButtonFontSize = secondaryButtonLayer.content.fontSize || 16;
+        config.secondaryButtonFontWeight = secondaryButtonLayer.content.fontWeight || 'w600';
+        config.secondaryButtonHeight = secondaryButtonLayer.size?.height || 50;
+        config.secondaryButtonWidth = secondaryButtonLayer.size?.width;
+        config.secondaryButtonBorderRadius = secondaryButtonLayer.style?.borderRadius || 12;
+        config.secondaryButtonElevation = secondaryButtonLayer.style?.boxShadow ? 2 : 0;
+        config.secondaryButtonPositionX = secondaryButtonLayer.position?.x || 0;
+        config.secondaryButtonPositionY = secondaryButtonLayer.position?.y || 0;
+        config.secondaryButtonBorderColor = secondaryButtonLayer.style?.borderColor;
+        config.secondaryButtonBorderWidth = secondaryButtonLayer.style?.borderWidth || 1;
+        config.secondaryButtonBorderStyle = secondaryButtonLayer.style?.borderStyle || 'solid';
+        config.secondaryButtonMarginTop = typeof secondaryButtonLayer.style?.margin === 'object'
+            ? secondaryButtonLayer.style.margin.top || 12
+            : 12;
+
+        config.secondaryButtonActionType = secondaryButtonLayer.content.action?.type || 'close';
+        config.secondaryButtonActionUrl = secondaryButtonLayer.content.action?.url;
+        config.secondaryButtonActionScreen = secondaryButtonLayer.content.action?.screenName;
+        config.secondaryButtonActionInterfaceId = secondaryButtonLayer.content.action?.interfaceId;
+
+        // Secondary button padding
+        config.secondaryButtonPaddingVertical = typeof secondaryButtonLayer.style?.padding === 'object'
+            ? secondaryButtonLayer.style.padding.top
+            : secondaryButtonLayer.style?.padding || 0;
+        config.secondaryButtonPaddingHorizontal = typeof secondaryButtonLayer.style?.padding === 'object'
+            ? secondaryButtonLayer.style.padding.left
+            : secondaryButtonLayer.style?.padding || 0;
+        config.secondaryButtonLetterSpacing = secondaryButtonLayer.style?.letterSpacing || 0;
+        config.secondaryButtonTextTransform = secondaryButtonLayer.style?.textTransform;
+
+        // Secondary button transform (position/rotation)
+        if (secondaryButtonLayer.style?.transform) {
+            config.secondaryButtonTranslateX = secondaryButtonLayer.style.transform.translateX || 0;
+            config.secondaryButtonTranslateY = secondaryButtonLayer.style.transform.translateY || 0;
+            config.secondaryButtonRotate = secondaryButtonLayer.style.transform.rotate || 0;
+            config.secondaryButtonScale = secondaryButtonLayer.style.transform.scale || 1;
+        }
+
+        // Secondary button shadow
+        if (secondaryButtonLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(secondaryButtonLayer.style.boxShadow);
+            config.secondaryButtonShadowColor = shadow.color;
+            config.secondaryButtonShadowOpacity = shadow.opacity;
+            config.secondaryButtonShadowBlur = shadow.blur;
+            config.secondaryButtonShadowSpread = shadow.spread;
+            config.secondaryButtonShadowOffsetX = shadow.offsetX;
+            config.secondaryButtonShadowOffsetY = shadow.offsetY;
+        }
+    }
+
+    // ========== IMAGE LAYER - ALL PROPERTIES ==========
+    if (imageLayer) {
+        config.showImage = imageLayer.visible !== false;
+        config.imageUrl = imageLayer.content.imageUrl || '';
+        config.imageWidth = imageLayer.size?.width || 56;
+        config.imageHeight = imageLayer.size?.height || 56;
+        config.imageFit = imageLayer.style?.objectFit || 'cover';
+        config.imagePosition = imageLayer.style?.objectPosition;
+        config.imageBorderRadius = imageLayer.style?.borderRadius || 8;
+        config.imageBackgroundColor = imageLayer.style?.backgroundColor;
+        config.imagePositionType = imageLayer.position?.type || 'relative'; // absolute or relative
+        config.imagePositionX = imageLayer.position?.x || 0;
+        config.imagePositionY = imageLayer.position?.y || 0;
+
+        // Image margins (all sides)
+        if (typeof imageLayer.style?.margin === 'object') {
+            config.imageMarginTop = imageLayer.style.margin.top || 0;
+            config.imageMarginBottom = imageLayer.style.margin.bottom || 16;
+            config.imageMarginLeft = imageLayer.style.margin.left || 0;
+            config.imageMarginRight = imageLayer.style.margin.right || 0;
+        } else {
+            config.imageMarginTop = 0;
+            config.imageMarginBottom = 16;
+            config.imageMarginLeft = 0;
+            config.imageMarginRight = 0;
+        }
+
+        config.imageBorderColor = imageLayer.style?.borderColor;
+        config.imageBorderWidth = imageLayer.style?.borderWidth || 0;
+        config.imageBorderStyle = imageLayer.style?.borderStyle || 'solid';
+        config.imageOpacity = imageLayer.style?.opacity || 1.0;
+
+        // Image filters (blur, brightness, contrast, grayscale)
+        if (imageLayer.style?.filter) {
+            config.imageFilterBlur = imageLayer.style.filter.blur || 0;
+            config.imageFilterBrightness = imageLayer.style.filter.brightness || 100;
+            config.imageFilterContrast = imageLayer.style.filter.contrast || 100;
+            config.imageFilterGrayscale = imageLayer.style.filter.grayscale || 0;
+        }
+
+        // Parse shadow for image
+        if (imageLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(imageLayer.style.boxShadow);
+            config.imageShadowColor = shadow.color;
+            config.imageShadowOpacity = shadow.opacity;
+            config.imageShadowBlur = shadow.blur;
+            config.imageShadowSpread = shadow.spread;
+            config.imageShadowOffsetX = shadow.offsetX;
+            config.imageShadowOffsetY = shadow.offsetY;
+        }
+
+        // Image transform (position/rotation)
+        if (imageLayer.style?.transform) {
+            config.imageTranslateX = imageLayer.style.transform.translateX || 0;
+            config.imageTranslateY = imageLayer.style.transform.translateY || 0;
+            config.imageRotate = imageLayer.style.transform.rotate || 0;
+            config.imageScale = imageLayer.style.transform.scale || 1;
+        }
+    }
+
+    // ========== CONTAINER LAYER - ALL PROPERTIES ==========
+    if (containerLayer) {
+        // Container position
+        config.containerPositionX = containerLayer.position?.x || 0;
+        config.containerPositionY = containerLayer.position?.y || 0;
+        config.containerPositionType = (containerLayer.style as any)?.position || 'relative';
+
+        // Z-Index & Opacity
+        config.containerZIndex = containerLayer.style?.zIndex || 0;
+        config.containerOpacity = containerLayer.style?.opacity !== undefined ? containerLayer.style.opacity : 1.0;
+
+        // Filters
+        if (containerLayer.style?.filter) {
+            config.containerFilterBlur = containerLayer.style.filter.blur || 0;
+            config.containerFilterBrightness = containerLayer.style.filter.brightness || 100;
+            config.containerFilterContrast = containerLayer.style.filter.contrast || 100;
+            config.containerFilterGrayscale = containerLayer.style.filter.grayscale || 0;
+        }
+
+        // Box Shadow
+        if (containerLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(containerLayer.style.boxShadow);
+            config.containerBoxShadowColor = shadow.color;
+            config.containerBoxShadowOpacity = shadow.opacity;
+            config.containerBoxShadowBlur = shadow.blur;
+            config.containerBoxShadowSpread = shadow.spread;
+            config.containerBoxShadowOffsetX = shadow.offsetX;
+            config.containerBoxShadowOffsetY = shadow.offsetY;
+            config.containerBoxShadowInset = shadow.inset;
+        }
+
+        // Clip Path
+        config.containerClipPath = containerLayer.style?.clipPath;
+
+        // Transform
+        if (containerLayer.style?.transform) {
+            config.containerTranslateX = containerLayer.style.transform.translateX || 0;
+            config.containerTranslateY = containerLayer.style.transform.translateY || 0;
+            config.containerRotate = containerLayer.style.transform.rotate || 0;
+            config.containerScale = containerLayer.style.transform.scale || 1;
+        }
+
+
+        config.backgroundColor = containerLayer.style?.backgroundColor || '#FFFFFF';
+        config.borderColor = containerLayer.style?.borderColor;
+        config.borderWidth = containerLayer.style?.borderWidth || 0;
+        config.borderStyle = containerLayer.style?.borderStyle;
+
+        // Gradient support
+        if (containerLayer.style?.gradient) {
+            const gradient = containerLayer.style.gradient as any;
+            config.backgroundGradient = {
+                type: gradient.type || 'linear',
+                angle: gradient.angle || 180,
+                colors: gradient.colors || [],
+                stops: gradient.stops || null,
+                centerX: gradient.centerX || 0.5,
+                centerY: gradient.centerY || 0.5,
+                radius: gradient.radius || 0.5
+            };
+        } else if (containerLayer.style?.backgroundImage?.includes('gradient')) {
+            config.backgroundGradient = containerLayer.style.backgroundImage;
+        }
+
+        // Background image
+        if (containerLayer.style?.backgroundImage && !containerLayer.style.backgroundImage.includes('gradient')) {
+            config.backgroundImage = containerLayer.style.backgroundImage;
+            config.backgroundSize = containerLayer.style.backgroundSize || 'cover';
+            config.backgroundRepeat = containerLayer.style.backgroundRepeat || 'no-repeat';
+
+            // Parse background position into X and Y components
+            const bgPos = containerLayer.style.backgroundPosition || 'center center';
+            const [bgPosX, bgPosY] = bgPos.split(' ');
+            config.backgroundPositionX = bgPosX || 'center';
+            config.backgroundPositionY = bgPosY || bgPosX || 'center';
+        }
+
+        // Border radius (per corner)
+        if (typeof containerLayer.style?.borderRadius === 'object') {
+            config.borderRadiusTopLeft = containerLayer.style.borderRadius.topLeft || 20;
+            config.borderRadiusTopRight = containerLayer.style.borderRadius.topRight || 20;
+            config.borderRadiusBottomLeft = containerLayer.style.borderRadius.bottomLeft || 0;
+            config.borderRadiusBottomRight = containerLayer.style.borderRadius.bottomRight || 0;
+            config.borderRadius = config.borderRadiusTopLeft; // For backward compatibility
+        } else {
+            const radius = containerLayer.style?.borderRadius || 20;
+            config.borderRadius = radius;
+            config.borderRadiusTopLeft = radius;
+            config.borderRadiusTopRight = radius;
+            config.borderRadiusBottomLeft = radius;
+            config.borderRadiusBottomRight = radius;
+        }
+
+        // Padding
+        if (typeof containerLayer.style?.padding === 'object') {
+            config.paddingTop = containerLayer.style.padding.top || 0;
+            config.paddingBottom = containerLayer.style.padding.bottom || 0;
+            config.paddingLeft = containerLayer.style.padding.left || 0;
+            config.paddingRight = containerLayer.style.padding.right || 0;
+        } else {
+            const padding = containerLayer.style?.padding || 0;
+            config.paddingTop = padding;
+            config.paddingBottom = padding;
+            config.paddingLeft = padding;
+            config.paddingRight = padding;
+        }
+
+        // Margin
+        if (typeof containerLayer.style?.margin === 'object') {
+            config.marginTop = containerLayer.style.margin.top || 0;
+            config.marginBottom = containerLayer.style.margin.bottom || 0;
+            config.marginLeft = containerLayer.style.margin.left || 0;
+            config.marginRight = containerLayer.style.margin.right || 0;
+        } else {
+            const margin = containerLayer.style?.margin || 0;
+            config.marginTop = margin;
+            config.marginBottom = margin;
+            config.marginLeft = margin;
+            config.marginRight = margin;
+        }
+
+        // Shadow
+        if (containerLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(containerLayer.style.boxShadow);
+            config.shadowColor = shadow.color;
+            config.shadowOpacity = shadow.opacity;
+            config.shadowBlur = shadow.blur;
+            config.shadowSpread = shadow.spread;
+            config.shadowOffsetX = shadow.offsetX;
+            config.shadowOffsetY = shadow.offsetY;
+        } else {
+            // Default shadow
+            config.shadowColor = '#000000';
+            config.shadowOpacity = 0.1;
+            config.shadowBlur = 16;
+            config.shadowSpread = 0;
+            config.shadowOffsetX = 0;
+            config.shadowOffsetY = -2;
+        }
+
+        // Dimensions
+        config.width = containerLayer.size?.width;
+        config.height = containerLayer.size?.height;
+        config.maxWidth = containerLayer.style?.maxWidth || null; // null = unlimited
+        config.maxHeight = containerLayer.style?.maxHeight || null;
+        config.minWidth = containerLayer.style?.minWidth || 0;
+        config.minHeight = containerLayer.style?.minHeight || 0;
+        config.containerOpacity = containerLayer.style?.opacity !== undefined ? containerLayer.style.opacity : 1.0;
+        config.zIndex = containerLayer.zIndex || 0;
+        config.display = containerLayer.style?.display || 'flex';
+        config.overflow = containerLayer.style?.overflow || 'visible';
+        config.cursor = containerLayer.style?.cursor || 'default';
+
+        // Flex layout properties
+        config.flexDirection = containerLayer.style?.flexDirection || 'column';
+        config.alignItems = containerLayer.style?.alignItems || 'stretch';
+        config.justifyContent = containerLayer.style?.justifyContent || 'flex-start';
+        config.gap = containerLayer.style?.gap || 0;
+
+        // Container filters (blur, brightness, contrast, grayscale)
+        if (containerLayer.style?.filter) {
+            config.containerFilterBlur = containerLayer.style.filter.blur || 0;
+            config.containerFilterBrightness = containerLayer.style.filter.brightness || 100;
+            config.containerFilterContrast = containerLayer.style.filter.contrast || 100;
+            config.containerFilterGrayscale = containerLayer.style.filter.grayscale || 0;
+        }
+
+        // Container clip path (custom shapes)
+        config.clipPath = containerLayer.style?.clipPath;
+
+        // Container transform (position/rotation)
+        if (containerLayer.style?.transform) {
+            config.containerTranslateX = containerLayer.style.transform.translateX || 0;
+            config.containerTranslateY = containerLayer.style.transform.translateY || 0;
+            config.containerRotate = containerLayer.style.transform.rotate || 0;
+            config.containerScale = containerLayer.style.transform.scale || 1;
+        }
+    }
+
+    // ========== DRAG HANDLE - ALL PROPERTIES ==========
+    if (handleLayer) {
+        config.dragHandle = handleLayer.visible !== false;
+        config.dragHandleWidth = handleLayer.size?.width || 32;
+        config.dragHandleHeight = handleLayer.size?.height || 3;
+        config.dragHandleColor = handleLayer.style?.backgroundColor || '#E0E0E0';
+        config.dragHandleBorderRadius = handleLayer.style?.borderRadius || 1.5;
+        config.dragHandleOpacity = handleLayer.style?.opacity !== undefined ? handleLayer.style.opacity : 1.0;
+
+        // Position
+        config.dragHandlePositionX = handleLayer.position?.x || 0;
+        config.dragHandlePositionY = handleLayer.position?.y || 0;
+        config.dragHandlePositionType = (handleLayer.position as any)?.type || 'relative';
+
+        // Border
+        config.dragHandleBorderWidth = handleLayer.style?.borderWidth || 0;
+        config.dragHandleBorderColor = handleLayer.style?.borderColor;
+        config.dragHandleBorderStyle = handleLayer.style?.borderStyle || 'solid';
+
+        // Filters
+        if (handleLayer.style?.filter) {
+            config.dragHandleFilterBlur = handleLayer.style.filter.blur || 0;
+            config.dragHandleFilterBrightness = handleLayer.style.filter.brightness || 100;
+            config.dragHandleFilterContrast = handleLayer.style.filter.contrast || 100;
+            config.dragHandleFilterGrayscale = handleLayer.style.filter.grayscale || 0;
+        }
+
+        // Transform
+        if (handleLayer.style?.transform) {
+            config.dragHandleTranslateX = handleLayer.style.transform.translateX || 0;
+            config.dragHandleTranslateY = handleLayer.style.transform.translateY || 0;
+            config.dragHandleRotate = handleLayer.style.transform.rotate || 0;
+            config.dragHandleScale = handleLayer.style.transform.scale || 1;
+        }
+
+        // Box Shadow
+        if (handleLayer.style?.boxShadow) {
+            const shadow = parseBoxShadow(handleLayer.style.boxShadow);
+            config.dragHandleShadowColor = shadow.color;
+            config.dragHandleShadowOpacity = shadow.opacity;
+            config.dragHandleShadowBlur = shadow.blur;
+            config.dragHandleShadowSpread = shadow.spread;
+            config.dragHandleShadowOffsetX = shadow.offsetX;
+            config.dragHandleShadowOffsetY = shadow.offsetY;
+            config.dragHandleShadowInset = shadow.inset;
+        }
+
+        if (typeof handleLayer.style?.margin === 'object') {
+            config.dragHandleMarginTop = handleLayer.style.margin.top || 10;
+            config.dragHandleMarginBottom = handleLayer.style.margin.bottom || 4;
+        } else {
+            config.dragHandleMarginTop = 10;
+            config.dragHandleMarginBottom = 4;
+        }
+    }
+
+    // ========== CLOSE BUTTON (X icon) ==========
+    const closeButtonLayer = campaign.layers.find(l => l.type === 'icon' && (l.name.toLowerCase().includes('close') || l.name.toLowerCase().includes('dismiss')));
+    if (closeButtonLayer) {
+        config.showCloseButton = closeButtonLayer.visible !== false;
+        config.closeButtonPosition = closeButtonLayer.content.containerPosition || 'top-right';
+        config.closeButtonSize = closeButtonLayer.size?.width || 24;
+        config.closeButtonColor = closeButtonLayer.content.textColor || (closeButtonLayer.style as any)?.color || '#666666';
+        config.closeButtonMargin = typeof closeButtonLayer.style?.margin === 'object'
+            ? closeButtonLayer.style.margin.top || 8
+            : 8;
+    }
+
+    // ========== ICON LAYERS (decorative icons) ==========
+    const iconLayers = campaign.layers.filter(l => l.type === 'icon' && l !== closeButtonLayer);
+    if (iconLayers.length > 0) {
+        config.icons = iconLayers.map(icon => ({
+            name: icon.content.iconName || 'star',
+            size: icon.size?.width || 20,
+            color: icon.content.textColor || (icon.style as any)?.color || '#666666',
+            opacity: icon.style?.opacity || 1.0,
+            rotation: icon.style?.transform?.rotate || (icon.style as any)?.rotation || 0,
+            translateX: icon.style?.transform?.translateX || 0,
+            translateY: icon.style?.transform?.translateY || 0,
+            scale: icon.style?.transform?.scale || 1,
+            position: icon.position,
+        }));
+    }
+
+    // ========== CONTENT PADDING (from bottom sheet config or layers) ==========
+    config.contentPaddingTop = 12;
+    config.contentPaddingBottom = 20;
+    config.contentPaddingLeft = 20;
+    config.contentPaddingRight = 20;
+
+    // ========== BEHAVIOR & INTERACTION ==========
+    config.dismissible = true;
+    config.backdropDismiss = true;
+    config.scrollable = false;
+    config.autoDismissOnCTA = true;
+    config.dismissThreshold = 0.15;
+
+    // ========== OVERLAY/BACKDROP ==========
+    if (campaign.bottomSheetConfig?.overlay) {
+        config.overlayOpacity = campaign.bottomSheetConfig.overlay.opacity || 0.4;
+        config.backdropColor = campaign.bottomSheetConfig.overlay.color || '#000000';
+        config.backdropBlur = campaign.bottomSheetConfig.overlay.blur || 0;
+    } else {
+        config.overlayOpacity = 0.4;
+        config.backdropColor = '#000000';
+        config.backdropBlur = 0;
+    }
+
+    // ========== ANIMATION ==========
+    if (campaign.bottomSheetConfig?.animation) {
+        config.animationDuration = campaign.bottomSheetConfig.animation.duration || 300;
+        config.animationType = campaign.bottomSheetConfig.animation.type || 'slide';
+        config.animationEasing = campaign.bottomSheetConfig.animation.easing || 'ease-out';
+        config.animationCurve = mapAnimationCurve(campaign.bottomSheetConfig.animation.easing);
+    } else {
+        config.animationDuration = 300;
+        config.animationType = 'slide';
+        config.animationEasing = 'ease-out';
+        config.animationCurve = 'easeOutCubic';
+    }
+
+    // ========== BOTTOM SHEET SPECIFIC ==========
+    if (campaign.bottomSheetConfig) {
+        config.height = campaign.bottomSheetConfig.height || 'auto';
+        config.dragHandle = campaign.bottomSheetConfig.dragHandle !== false;
+        config.mode = campaign.bottomSheetConfig.mode; // 'container' | 'image-only'
+        config.backgroundImageUrl = campaign.bottomSheetConfig.backgroundImageUrl;
+        config.backgroundSize = campaign.bottomSheetConfig.backgroundSize; // 'cover' | 'contain' | 'fill'
+        config.backgroundPosition = campaign.bottomSheetConfig.backgroundPosition;
+    }
+
+    // ========== PIP SPECIFIC ==========
+    if (campaign.nudgeType === 'pip') {
+        const videoLayer = campaign.layers.find(l => l.type === 'video');
+
+        // Extract video URL
+        if (videoLayer) {
+            config.videoUrl = (videoLayer.content as any).url || '';
+        }
+
+        // Extract PIP config
+        if (campaign.pipConfig) {
+            config.position = campaign.pipConfig.position || 'bottom-right';
+            config.width = campaign.pipConfig.width || 160;
+            config.height = campaign.pipConfig.height || 220;
+            config.backgroundColor = campaign.pipConfig.backgroundColor || 'black';
+            config.cornerRadius = campaign.pipConfig.cornerRadius || 12;
+            config.showCloseButton = campaign.pipConfig.showCloseButton !== false;
+            config.timing = campaign.pipConfig.timing;
+        } else {
+            // Defaults if config is missing
+            config.position = 'bottom-right';
+            config.width = 160;
+            config.height = 220;
+            config.backgroundColor = 'black';
+            config.cornerRadius = 12;
+            config.showCloseButton = true;
+            config.timing = { delay: 0, duration: 0 };
+        }
+    }
+
+    // ========== COMPONENTS TREE (CRITICAL FOR MOBILE RENDERER) ==========
+    // The mobile renderer expects a 'components' array in the config.
+    // This was previously missing, causing "No components defined" error.
+    config.components = buildComponentsTree(campaign.layers);
+
+    return config;
+}
+
+/**
+ * Map CSS animation easing to Flutter curve names
+ */
+function mapAnimationCurve(easing: string): string {
+    const mapping: Record<string, string> = {
+        'ease': 'ease',
+        'ease-in': 'easeIn',
+        'ease-out': 'easeOut',
+        'ease-in-out': 'easeInOut',
+        'linear': 'linear',
+        'ease-out-cubic': 'easeOutCubic',
+        'ease-in-cubic': 'easeInCubic',
+        'ease-in-out-cubic': 'easeInOutCubic',
+        'bounce': 'bounceOut',
+        'elastic': 'elasticOut',
+    };
+    return mapping[easing.toLowerCase()] || 'easeOutCubic';
+}
+
+/**
+ * Parse CSS box-shadow into components
+ * Handles rgba(), rgb(), hex colors, and inset keyword
+ */
+function parseBoxShadow(boxShadow: string): {
+    color: string;
+    opacity: number;
+    blur: number;
+    spread: number;
+    offsetX: number;
+    offsetY: number;
+    inset: boolean;
+} {
+    // Default values
+    const result = {
+        color: '#000000',
+        opacity: 0.1,
+        blur: 16,
+        spread: 0,
+        offsetX: 0,
+        offsetY: -2,
+        inset: false,
+    };
+
+    try {
+        // Check for inset
+        result.inset = boxShadow.includes('inset');
+        const cleanShadow = boxShadow.replace('inset', '').trim();
+
+        // Extract color first (rgba, rgb, or hex)
+        const rgbaMatch = cleanShadow.match(/rgba?\(([^)]+)\)/);
+        const hexMatch = cleanShadow.match(/#[0-9A-Fa-f]{3,8}/);
+
+        if (rgbaMatch) {
+            const rgba = rgbaMatch[1].split(',').map(v => v.trim());
+            if (rgba.length >= 3) {
+                const r = parseInt(rgba[0]);
+                const g = parseInt(rgba[1]);
+                const b = parseInt(rgba[2]);
+                result.color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+                result.opacity = rgba.length === 4 ? parseFloat(rgba[3]) : 1.0;
+            }
+        } else if (hexMatch) {
+            result.color = hexMatch[0].toUpperCase();
+            result.opacity = 1.0;
+        }
+
+        // Extract numeric values (remove color part)
+        const numericPart = cleanShadow.replace(/rgba?\([^)]+\)/, '').replace(/#[0-9A-Fa-f]{3,8}/, '').trim();
+        const parts = numericPart.split(/\s+/).filter(p => p);
+
+        if (parts.length >= 2) {
+            result.offsetX = parseFloat(parts[0]) || 0;
+            result.offsetY = parseFloat(parts[1]) || 0;
+            if (parts.length >= 3) result.blur = parseFloat(parts[2]) || 0;
+            if (parts.length >= 4) result.spread = parseFloat(parts[3]) || 0;
+        }
+    } catch (error) {
+        console.warn('Failed to parse box-shadow:', boxShadow, error);
+    }
+
+    return result;
+}
+
+/**
+ * Reconstruct layers from backend config
+ */
+function reconstructLayersFromConfig(config: Record<string, any>, type: string): Layer[] {
+    // ✅ IMPROVED: Allow reconstruction for all types (or at least attempt it)
+    // Previously this returned [] for anything not 'bottomsheet', causing issues for Modal/Banner
+    // if they relied on config-based reconstruction.
+
+    // if (type !== 'bottomsheet') { return []; } // REMOVED
+
+    const baseId = Date.now();
+    const layers: Layer[] = [];
+
+    // ✅ FIX: Determine container name based on nudge type
+    let containerName = 'Modal Container'; // default
+    switch (type) {
+        case 'bottomsheet': containerName = 'Bottom Sheet'; break;
+        case 'scratchcard': containerName = 'Scratch Card Container'; break;
+        case 'banner': containerName = 'Banner Container'; break;
+        case 'tooltip': containerName = 'Tooltip Container'; break;
+        case 'pip': containerName = 'PIP Container'; break;
+        case 'floater': containerName = 'Floater Container'; break;
+        default: containerName = 'Modal Container';
+    }
+
+    // Container layer
+    const containerLayer: Layer = {
+        id: `layer_${baseId}`,
+        type: 'container',
+        name: containerName,
+        parent: null,
+        children: [],
+        visible: true,
+        locked: false,
+        zIndex: config.zIndex || 0,
+        position: {
+            x: config.containerPositionX || 0,
+            y: config.containerPositionY || 0
+        },
+        size: {
+            width: config.width !== undefined ? config.width : '100%',
+            height: config.height !== undefined ? config.height : 'auto',
+        },
+        content: {},
+        style: {
+            backgroundColor: config.backgroundColor || '#FFFFFF',
+            ...(config.backgroundGradient && { gradient: config.backgroundGradient }),
+            ...((config.backgroundImage || config.backgroundImageUrl) && {
+                backgroundImage: config.backgroundImage || config.backgroundImageUrl,
+                backgroundSize: config.backgroundSize || 'cover',
+                backgroundPosition: `${config.backgroundPositionX || 'center'} ${config.backgroundPositionY || 'center'}`,
+                backgroundRepeat: config.backgroundRepeat || 'no-repeat',
+            }),
+            borderRadius: (config.borderRadiusTopLeft !== undefined || config.borderRadiusTopRight !== undefined ||
+                config.borderRadiusBottomLeft !== undefined || config.borderRadiusBottomRight !== undefined)
+                ? {
+                    topLeft: config.borderRadiusTopLeft ?? config.borderRadius ?? 24,
+                    topRight: config.borderRadiusTopRight ?? config.borderRadius ?? 24,
+                    bottomLeft: config.borderRadiusBottomLeft ?? 0,
+                    bottomRight: config.borderRadiusBottomRight ?? 0,
+                }
+                : config.borderRadius || 24,
+            borderWidth: config.borderWidth,
+            borderColor: config.borderColor,
+            borderStyle: config.borderStyle,
+            opacity: config.containerOpacity !== undefined ? config.containerOpacity : 1,
+            maxWidth: config.maxWidth || undefined,
+            maxHeight: config.maxHeight || undefined,
+            minWidth: config.minWidth || 0,
+            minHeight: config.minHeight || 0,
+            display: config.display || 'flex',
+            overflow: config.overflow || 'visible',
+            cursor: config.cursor || 'default',
+            flexDirection: config.flexDirection || 'column',
+            alignItems: config.alignItems || 'stretch',
+            justifyContent: config.justifyContent || 'flex-start',
+            gap: config.gap || 0,
+            clipPath: config.clipPath,
+            filter: (config.containerFilterBlur || config.containerFilterBrightness !== 100 || config.containerFilterContrast !== 100 || config.containerFilterGrayscale) ? {
+                blur: config.containerFilterBlur,
+                brightness: config.containerFilterBrightness,
+                contrast: config.containerFilterContrast,
+                grayscale: config.containerFilterGrayscale,
+            } : undefined,
+            boxShadow: config.shadowColor
+                ? `${config.shadowOffsetX || 0}px ${config.shadowOffsetY || 0}px ${config.shadowBlur || 0}px ${config.shadowSpread || 0}px ${config.shadowColor}`
+                : undefined,
+            transform: (config.containerTranslateX !== undefined && config.containerTranslateX !== 0) ||
+                (config.containerTranslateY !== undefined && config.containerTranslateY !== 0) ||
+                (config.containerRotate !== undefined && config.containerRotate !== 0) ||
+                (config.containerScale !== undefined && config.containerScale !== 1) ? {
+                translateX: config.containerTranslateX || 0,
+                translateY: config.containerTranslateY || 0,
+                rotate: config.containerRotate || 0,
+                scale: config.containerScale || 1,
+            } : undefined,
+            padding: {
+                top: config.paddingTop ?? 0,
+                right: config.paddingRight ?? 0,
+                bottom: config.paddingBottom ?? 0,
+                left: config.paddingLeft ?? 0
+            },
+            margin: config.marginTop || config.marginBottom || config.marginLeft || config.marginRight ? {
+                top: config.marginTop || 0,
+                right: config.marginRight || 0,
+                bottom: config.marginBottom || 0,
+                left: config.marginLeft || 0,
+            } : undefined,
+        },
+    };
+    layers.push(containerLayer);
+
+    // Drag handle layer generation has been removed as it is now natively supported by renderers
+
+    // Image layer
+    if (config.imageUrl) {
+        const imageLayer: Layer = {
+            id: `layer_${baseId + 2}`,
+            type: 'media',
+            name: 'Image',
+            parent: containerLayer.id,
+            children: [],
+            visible: config.showImage === undefined ? true : config.showImage,
+            locked: false,
+            zIndex: 2,
+            position: {
+                x: config.imagePositionX || 0,
+                y: config.imagePositionY || 0,
+                type: config.imagePositionType || 'relative'
+            },
+            size: {
+                width: config.imageWidth || '100%',
+                height: config.imageHeight || 200
+            },
+            content: {
+                imageUrl: config.imageUrl,
+            },
+            style: {
+                objectFit: config.imageFit || 'cover',
+                objectPosition: config.imagePosition,
+                backgroundColor: config.imageBackgroundColor,
+                borderRadius: config.imageBorderRadius || 12,
+                borderWidth: config.imageBorderWidth,
+                borderColor: config.imageBorderColor,
+                opacity: config.imageOpacity !== undefined ? config.imageOpacity : 1.0,
+                filter: (config.imageFilterBlur || config.imageFilterBrightness !== 100 || config.imageFilterContrast !== 100 || config.imageFilterGrayscale) ? {
+                    blur: config.imageFilterBlur,
+                    brightness: config.imageFilterBrightness,
+                    contrast: config.imageFilterContrast,
+                    grayscale: config.imageFilterGrayscale,
+                } : undefined,
+                boxShadow: config.imageShadowColor
+                    ? `${config.imageShadowOffsetX || 0}px ${config.imageShadowOffsetY || 0}px ${config.imageShadowBlur || 0}px ${config.imageShadowSpread || 0}px ${config.imageShadowColor}`
+                    : undefined,
+                transform: (config.imageTranslateX !== undefined && config.imageTranslateX !== 0) ||
+                    (config.imageTranslateY !== undefined && config.imageTranslateY !== 0) ||
+                    (config.imageRotate !== undefined && config.imageRotate !== 0) ||
+                    (config.imageScale !== undefined && config.imageScale !== 1) ? {
+                    translateX: config.imageTranslateX || 0,
+                    translateY: config.imageTranslateY || 0,
+                    rotate: config.imageRotate || 0,
+                    scale: config.imageScale || 1,
+                } : undefined,
+                margin: {
+                    top: config.imageMarginTop || 0,
+                    right: config.imageMarginRight || 0,
+                    bottom: config.imageMarginBottom || 16,
+                    left: config.imageMarginLeft || 0
+                },
+            },
+        };
+        layers.push(imageLayer);
+        containerLayer.children.push(imageLayer.id);
+    }
+
+    // Text layer
+    if (config.text) {
+        const textLayer: Layer = {
+            id: `layer_${baseId + 3}`,
+            type: 'text',
+            name: 'Title',
+            parent: containerLayer.id,
+            children: [],
+            visible: config.showTitle === undefined ? true : config.showTitle,
+            locked: false,
+            zIndex: 3,
+            position: {
+                x: config.textPositionX || 0,
+                y: config.textPositionY || 0,
+                type: config.textPositionType || 'relative'
+            },
+            size: {
+                width: config.textWidth || '100%',
+                height: config.textHeight || 'auto'
+            },
+            content: {
+                text: config.text,
+                fontSize: config.fontSize || 20,
+                fontWeight: config.fontWeight || 'bold',
+                textColor: config.textColor || '#111827',
+                textAlign: config.textAlign || 'left',
+            },
+            style: {
+                backgroundColor: config.textBackgroundColor,
+                borderWidth: config.textBorderWidth || 0,
+                borderColor: config.textBorderColor,
+                borderStyle: config.textBorderStyle || 'solid',
+                borderRadius: (config.textBorderRadiusTopLeft !== undefined || config.textBorderRadiusTopRight !== undefined ||
+                    config.textBorderRadiusBottomLeft !== undefined || config.textBorderRadiusBottomRight !== undefined)
+                    ? {
+                        topLeft: config.textBorderRadiusTopLeft ?? config.textBorderRadius ?? 0,
+                        topRight: config.textBorderRadiusTopRight ?? config.textBorderRadius ?? 0,
+                        bottomLeft: config.textBorderRadiusBottomLeft ?? 0,
+                        bottomRight: config.textBorderRadiusBottomRight ?? 0,
+                    }
+                    : config.textBorderRadius || 0,
+                opacity: config.textOpacity !== undefined ? config.textOpacity : 1.0,
+                maxWidth: config.textMaxWidth || undefined,
+                minWidth: config.textMinWidth || 0,
+                maxHeight: config.textMaxHeight || undefined,
+                minHeight: config.textMinHeight || 0,
+                display: config.textDisplay,
+                cursor: config.textCursor || 'default',
+                overflow: config.textOverflow,
+                padding: {
+                    top: config.textPaddingTop || 0,
+                    right: config.textPaddingRight || 0,
+                    bottom: config.textPaddingBottom || 0,
+                    left: config.textPaddingLeft || 0,
+                },
+                margin: {
+                    top: config.textMarginTop || 0,
+                    right: config.textMarginRight || 0,
+                    bottom: config.textMarginBottom || 8,
+                    left: config.textMarginLeft || 0
+                },
+                filter: (config.textFilterBlur || config.textFilterBrightness !== 100 ||
+                    config.textFilterContrast !== 100 || config.textFilterGrayscale) ? {
+                    blur: config.textFilterBlur || 0,
+                    brightness: config.textFilterBrightness || 100,
+                    contrast: config.textFilterContrast || 100,
+                    grayscale: config.textFilterGrayscale || 0,
+                } : undefined,
+                boxShadow: config.textBoxShadowColor
+                    ? `${config.textBoxShadowInset ? 'inset ' : ''}${config.textBoxShadowOffsetX || 0}px ${config.textBoxShadowOffsetY || 0}px ${config.textBoxShadowBlur || 0}px ${config.textBoxShadowSpread || 0}px ${config.textBoxShadowColor}`
+                    : undefined,
+                lineHeight: config.lineHeight,
+                letterSpacing: config.letterSpacing,
+                textDecoration: config.textDecoration,
+                textDecorationColor: config.textDecorationColor,
+                textDecorationStyle: config.textDecorationStyle,
+                fontFamily: config.fontStyle,
+                textTransform: config.textTransform,
+                textShadow: config.textShadowColor
+                    ? `${config.textShadowOffsetX || 0}px ${config.textShadowOffsetY || 0}px ${config.textShadowBlur || 0}px ${config.textShadowColor}`
+                    : undefined,
+                transform: (config.textTranslateX !== undefined && config.textTranslateX !== 0) ||
+                    (config.textTranslateY !== undefined && config.textTranslateY !== 0) ||
+                    (config.textRotate !== undefined && config.textRotate !== 0) ||
+                    (config.textScale !== undefined && config.textScale !== 1) ? {
+                    translateX: config.textTranslateX || 0,
+                    translateY: config.textTranslateY || 0,
+                    rotate: config.textRotate || 0,
+                    scale: config.textScale || 1,
+                } : undefined,
+            },
+        };
+        layers.push(textLayer);
+        containerLayer.children.push(textLayer.id);
+    }
+
+    // Title layer (if separate from text)
+    if (config.title && config.title !== config.text) {
+        const titleLayer: Layer = {
+            id: `layer_${baseId + 10}`,
+            type: 'text',
+            name: 'Heading',
+            parent: containerLayer.id,
+            children: [],
+            visible: true,
+            locked: false,
+            zIndex: 10,
+            position: { x: config.titlePositionX || 0, y: config.titlePositionY || 0 },
+            size: { width: '100%', height: 'auto' },
+            content: {
+                text: config.title,
+                fontSize: config.titleFontSize || 22,
+                fontWeight: config.titleFontWeight || 'w800',
+                textColor: config.titleColor || '#1A1A1A',
+                textAlign: config.titleAlign || 'center',
+            },
+            style: {
+                lineHeight: config.titleLineHeight,
+                letterSpacing: config.titleLetterSpacing,
+                textDecoration: config.titleDecoration,
+                textDecorationColor: config.titleDecorationColor,
+                textDecorationStyle: config.titleDecorationStyle,
+                fontFamily: config.titleFontStyle,
+                textTransform: config.titleTextTransform,
+                textShadow: config.titleShadowColor
+                    ? `${config.titleShadowOffsetX || 0}px ${config.titleShadowOffsetY || 0}px ${config.titleShadowBlur || 0}px ${config.titleShadowColor}`
+                    : undefined,
+                transform: (config.titleTranslateX !== undefined && config.titleTranslateX !== 0) ||
+                    (config.titleTranslateY !== undefined && config.titleTranslateY !== 0) ||
+                    (config.titleRotate !== undefined && config.titleRotate !== 0) ||
+                    (config.titleScale !== undefined && config.titleScale !== 1) ? {
+                    translateX: config.titleTranslateX || 0,
+                    translateY: config.titleTranslateY || 0,
+                    rotate: config.titleRotate || 0,
+                    scale: config.titleScale || 1,
+                } : undefined,
+                margin: {
+                    top: 0,
+                    right: 0,
+                    bottom: config.titleMarginBottom || 12,
+                    left: 0
+                },
+            },
+        };
+        layers.push(titleLayer);
+        containerLayer.children.push(titleLayer.id);
+    }
+
+    // Subtitle layer (if exists)
+    if (config.subtitle) {
+        const subtitleLayer: Layer = {
+            id: `layer_${baseId + 11}`,
+            type: 'text',
+            name: 'Subheading',
+            parent: containerLayer.id,
+            children: [],
+            visible: true,
+            locked: false,
+            zIndex: 11,
+            position: { x: config.subtitlePositionX || 0, y: config.subtitlePositionY || 0 },
+            size: { width: '100%', height: 'auto' },
+            content: {
+                text: config.subtitle,
+                fontSize: config.subtitleFontSize || 16,
+                fontWeight: config.subtitleFontWeight || 'w600',
+                textColor: config.subtitleColor || '#666666',
+                textAlign: config.subtitleAlign || 'center',
+            },
+            style: {
+                lineHeight: config.subtitleLineHeight,
+                letterSpacing: config.subtitleLetterSpacing,
+                textDecoration: config.subtitleDecoration,
+                textDecorationColor: config.subtitleDecorationColor,
+                fontFamily: config.subtitleFontStyle,
+                textTransform: config.subtitleTextTransform,
+                textShadow: config.subtitleShadowColor
+                    ? `${config.subtitleShadowOffsetX || 0}px ${config.subtitleShadowOffsetY || 0}px ${config.subtitleShadowBlur || 0}px ${config.subtitleShadowColor}`
+                    : undefined,
+                transform: (config.subtitleTranslateX !== undefined && config.subtitleTranslateX !== 0) ||
+                    (config.subtitleTranslateY !== undefined && config.subtitleTranslateY !== 0) ||
+                    (config.subtitleRotate !== undefined && config.subtitleRotate !== 0) ||
+                    (config.subtitleScale !== undefined && config.subtitleScale !== 1) ? {
+                    translateX: config.subtitleTranslateX || 0,
+                    translateY: config.subtitleTranslateY || 0,
+                    rotate: config.subtitleRotate || 0,
+                    scale: config.subtitleScale || 1,
+                } : undefined,
+                margin: {
+                    top: 0,
+                    right: 0,
+                    bottom: config.subtitleMarginBottom || 8,
+                    left: 0
+                },
+            },
+        };
+        layers.push(subtitleLayer);
+        containerLayer.children.push(subtitleLayer.id);
+    }
+
+    // Button layer
+    if (config.buttonText) {
+        const buttonLayer: Layer = {
+            id: `layer_${baseId + 4}`,
+            type: 'button',
+            name: 'CTA Button',
+            parent: containerLayer.id,
+            children: [],
+            visible: config.showButton === undefined ? true : config.showButton,
+            locked: false,
+            zIndex: 4,
+            position: { x: config.buttonPositionX || 0, y: config.buttonPositionY || 0 },
+            size: {
+                width: config.buttonWidth || '100%',
+                height: config.buttonHeight || 48
+            },
+            content: {
+                label: config.buttonText,
+                buttonStyle: 'primary',
+                fontSize: config.buttonFontSize,
+                fontWeight: config.buttonFontWeight,
+                textColor: config.buttonTextColor,
+                action: {
+                    type: config.buttonActionType || 'none', // ✅ FIX: Don't hardcode 'close', fallback to 'none' if empty
+                    url: config.buttonActionUrl,
+                    screenName: config.buttonActionScreen,
+                    interfaceId: config.buttonActionInterfaceId, // ✅ FIX: Restore interfaceId
+                    trackConversion: true,
+                    autoDismiss: true,
+                },
+            },
+            style: {
+                backgroundColor: config.buttonColor || '#22C55E',
+                borderRadius: config.buttonBorderRadius || 12,
+                borderWidth: config.buttonBorderWidth,
+                borderColor: config.buttonBorderColor,
+                letterSpacing: config.buttonLetterSpacing,
+                textTransform: config.buttonTextTransform,
+                boxShadow: config.buttonShadowColor
+                    ? `${config.buttonShadowOffsetX || 0}px ${config.buttonShadowOffsetY || 0}px ${config.buttonShadowBlur || 0}px ${config.buttonShadowSpread || 0}px ${config.buttonShadowColor}`
+                    : undefined,
+                transform: (config.buttonTranslateX !== undefined && config.buttonTranslateX !== 0) ||
+                    (config.buttonTranslateY !== undefined && config.buttonTranslateY !== 0) ||
+                    (config.buttonRotate !== undefined && config.buttonRotate !== 0) ||
+                    (config.buttonScale !== undefined && config.buttonScale !== 1) ? {
+                    translateX: config.buttonTranslateX || 0,
+                    translateY: config.buttonTranslateY || 0,
+                    rotate: config.buttonRotate || 0,
+                    scale: config.buttonScale || 1,
+                } : undefined,
+                margin: {
+                    top: config.buttonMarginTop || 16,
+                    right: config.buttonMarginRight || 0,
+                    bottom: config.buttonMarginBottom || 0,
+                    left: config.buttonMarginLeft || 0
+                },
+                padding: {
+                    top: config.buttonPaddingVertical || 0,
+                    right: config.buttonPaddingHorizontal || 0,
+                    bottom: config.buttonPaddingVertical || 0,
+                    left: config.buttonPaddingHorizontal || 0,
+                },
+            },
+        };
+        layers.push(buttonLayer);
+        containerLayer.children.push(buttonLayer.id);
+    }
+
+    // Secondary Button layer (if exists)
+    if (config.secondaryButtonText) {
+        const secondaryButtonLayer: Layer = {
+            id: `layer_${baseId + 5}`,
+            type: 'button',
+            name: 'Secondary Button',
+            parent: containerLayer.id,
+            children: [],
+            visible: true,
+            locked: false,
+            zIndex: 5,
+            position: { x: config.secondaryButtonPositionX || 0, y: config.secondaryButtonPositionY || 0 },
+            size: {
+                width: config.secondaryButtonWidth || '100%',
+                height: config.secondaryButtonHeight || 48
+            },
+            content: {
+                label: config.secondaryButtonText,
+                buttonStyle: 'secondary',
+                fontSize: config.secondaryButtonFontSize,
+                fontWeight: config.secondaryButtonFontWeight,
+                textColor: config.secondaryButtonTextColor,
+                action: {
+                    type: config.secondaryButtonActionType || 'none',
+                    url: config.secondaryButtonActionUrl,
+                    screenName: config.secondaryButtonActionScreen,
+                    interfaceId: config.secondaryButtonActionInterfaceId,
+                    trackConversion: false,
+                    autoDismiss: true,
+                },
+            },
+            style: {
+                backgroundColor: config.secondaryButtonColor || '#E0E0E0',
+                borderRadius: config.secondaryButtonBorderRadius || 12,
+                borderWidth: config.secondaryButtonBorderWidth,
+                borderColor: config.secondaryButtonBorderColor,
+                letterSpacing: config.secondaryButtonLetterSpacing,
+                textTransform: config.secondaryButtonTextTransform,
+                boxShadow: config.secondaryButtonShadowColor
+                    ? `${config.secondaryButtonShadowOffsetX || 0}px ${config.secondaryButtonShadowOffsetY || 0}px ${config.secondaryButtonShadowBlur || 0}px ${config.secondaryButtonShadowSpread || 0}px ${config.secondaryButtonShadowColor}`
+                    : undefined,
+                margin: {
+                    top: config.secondaryButtonMarginTop || 12,
+                    right: 0,
+                    bottom: 0,
+                    left: 0
+                },
+                padding: {
+                    top: config.secondaryButtonPaddingVertical || 0,
+                    right: config.secondaryButtonPaddingHorizontal || 0,
+                    bottom: config.secondaryButtonPaddingVertical || 0,
+                    left: config.secondaryButtonPaddingHorizontal || 0,
+                },
+                transform: (config.secondaryButtonTranslateX !== undefined && config.secondaryButtonTranslateX !== 0) ||
+                    (config.secondaryButtonTranslateY !== undefined && config.secondaryButtonTranslateY !== 0) ||
+                    (config.secondaryButtonRotate !== undefined && config.secondaryButtonRotate !== 0) ||
+                    (config.secondaryButtonScale !== undefined && config.secondaryButtonScale !== 1) ? {
+                    translateX: config.secondaryButtonTranslateX || 0,
+                    translateY: config.secondaryButtonTranslateY || 0,
+                    rotate: config.secondaryButtonRotate || 0,
+                    scale: config.secondaryButtonScale || 1,
+                } : undefined,
+            },
+        };
+        layers.push(secondaryButtonLayer);
+        containerLayer.children.push(secondaryButtonLayer.id);
+    }
+
+    // ========== CLOSE BUTTON LAYER RECONSTRUCTION ==========
+    if (config.showCloseButton) {
+        const closeButtonLayer: Layer = {
+            id: `layer_${baseId + 10}`,
+            type: 'icon',
+            name: 'Close Button',
+            parent: containerLayer.id,
+            children: [],
+            visible: true,
+            locked: false,
+            zIndex: 100,
+            position: { x: 0, y: 0 },
+            size: {
+                width: config.closeButtonSize || 24,
+                height: config.closeButtonSize || 24
+            },
+            content: {
+                iconName: 'close',
+                textColor: config.closeButtonColor || '#666666',
+                containerPosition: config.closeButtonPosition || 'top-right',
+            },
+            style: {
+                margin: typeof config.closeButtonMargin === 'number' ? {
+                    top: config.closeButtonMargin,
+                    right: config.closeButtonMargin,
+                    bottom: config.closeButtonMargin,
+                    left: config.closeButtonMargin,
+                } : config.closeButtonMargin,
+            },
+        };
+        layers.push(closeButtonLayer);
+        containerLayer.children.push(closeButtonLayer.id);
+    }
+
+    // ========== ICON LAYERS RECONSTRUCTION ==========
+    if (config.icons && Array.isArray(config.icons)) {
+        config.icons.forEach((icon: any, index: number) => {
+            const iconLayer: Layer = {
+                id: `layer_${baseId + 20 + index}`,
+                type: 'icon',
+                name: `Icon ${index + 1}`,
+                parent: containerLayer.id,
+                children: [],
+                visible: true,
+                locked: false,
+                zIndex: 10 + index,
+                position: icon.position || { x: 0, y: 0 },
+                size: {
+                    width: icon.size || 20,
+                    height: icon.size || 20
+                },
+                content: {
+                    iconName: icon.name || 'star',
+                    textColor: icon.color || '#666666',
+                },
+                style: {
+                    opacity: icon.opacity || 1.0,
+                    transform: (icon.translateX !== undefined && icon.translateX !== 0) ||
+                        (icon.translateY !== undefined && icon.translateY !== 0) ||
+                        (icon.rotation !== undefined && icon.rotation !== 0) ||
+                        (icon.scale !== undefined && icon.scale !== 1) ? {
+                        translateX: icon.translateX || 0,
+                        translateY: icon.translateY || 0,
+                        rotate: icon.rotation || 0,
+                        scale: icon.scale || 1,
+                    } : undefined,
+                },
+            };
+            layers.push(iconLayer);
+            containerLayer.children.push(iconLayer.id);
+        });
+    }
+
+    return layers;
+}
+
+/**
+ * Reconstruct targeting rules from backend rules
+ */
+function reconstructTargetingRules(rules: BackendRule[], trigger: string): TargetingRule[] {
+    const targetingRules: TargetingRule[] = [];
+
+    // Add event rule for trigger
+    targetingRules.push({
+        id: `rule_${Date.now()}`,
+        type: 'event',
+        event: trigger,
+        combineWith: 'AND',
+    });
+
+    // Convert backend rules
+    rules.forEach((rule, index) => {
+        targetingRules.push({
+            id: `rule_${Date.now() + index + 1}`,
+            type: rule.type === 'attribute' ? 'user_property' : 'event',
+            property: rule.type === 'attribute' ? rule.field : undefined,
+            eventProperty: rule.type === 'event' ? rule.field : undefined,
+            operator: reverseMapOperator(rule.operator),
+            value: rule.value,
+            combineWith: 'AND',
+        });
+    });
+
+    return targetingRules;
+}
+
+/**
+ * Reverse map backend operators to frontend operators
+ */
+function reverseMapOperator(op: BackendRule['operator']): TargetingRule['operator'] {
+    const mapping: Record<BackendRule['operator'], TargetingRule['operator']> = {
+        '==': 'equals',
+        '!=': 'not_equals',
+        '>': 'greater_than',
+        '<': 'less_than',
+        '>=': 'greater_than',
+        '<=': 'less_than',
+        'contains': 'contains',
+    };
+    return mapping[op] || 'equals';
+}
+
+/**
+ * Extract bottom sheet config from backend config
+ */
+function extractBottomSheetConfig(config: Record<string, any>): BottomSheetConfig {
+    return {
+        mode: config.mode, // 'container' | 'image-only'
+        height: config.height || 'auto',
+        dragHandle: config.dragHandle !== false,
+        swipeToDismiss: config.swipeToDismiss !== false,
+        backgroundColor: config.backgroundColor || '#FFFFFF',
+        backgroundImageUrl: config.backgroundImageUrl, // For image-only mode
+        backgroundSize: config.backgroundSize, // 'cover' | 'contain' | 'fill'
+        backgroundPosition: config.backgroundPosition,
+        borderRadius: {
+            topLeft: config.borderRadius || 16,
+            topRight: config.borderRadius || 16,
+        },
+        elevation: 2,
+        overlay: {
+            enabled: true,
+            opacity: config.overlayOpacity || 0.5,
+            blur: config.backdropBlur || 0,
+            color: config.backdropColor || '#000000',
+            dismissOnClick: config.overlay?.dismissOnClick ?? config.dismissOnClick ?? true,
+        },
+        animation: {
+            type: config.animationType || 'slide',
+            duration: config.animationDuration || 300,
+            easing: 'ease-out',
+        },
+        timing: config.timing || { delay: 0, duration: 0 },
+    };
+}
+
+/**
+ * Extract modal config from backend config
+ */
+function extractModalConfig(config: Record<string, any>): ModalConfig {
+    return {
+        width: config.width,
+        height: config.height,
+        backgroundColor: config.backgroundColor || '#FFFFFF',
+        backgroundImageUrl: config.backgroundImageUrl,
+        backgroundSize: config.backgroundSize,
+        backgroundPosition: config.backgroundPosition,
+        borderRadius: config.borderRadius || 16,
+        elevation: config.elevation !== undefined ? config.elevation : 2,
+        showCloseButton: config.showCloseButton !== false,
+        mode: config.mode || 'container',
+        overlay: {
+            enabled: config.overlay?.enabled ?? true,
+            opacity: config.overlay?.opacity ?? config.overlayOpacity ?? 0.5,
+            blur: config.overlay?.blur ?? config.backdropBlur ?? 0,
+            color: config.overlay?.color ?? config.backdropColor ?? '#000000',
+            dismissOnClick: config.overlay?.dismissOnClick ?? config.dismissOnClick ?? true,
+        },
+        animation: config.animation || {
+            type: config.animationType || 'pop',
+            duration: config.animationDuration || 300,
+            easing: config.animationEasing || 'ease-out',
+        },
+        timing: config.timing || { delay: 0, duration: 0 },
+    } as ModalConfig;
+}
+
+/**
+ * Extract banner config from backend config
+ */
+function extractBannerConfig(config: Record<string, any>): BannerConfig {
+    return {
+        position: config.position || 'top',
+        width: config.width || '100%',
+        height: config.height || 'auto',
+        backgroundColor: config.backgroundColor || '#FFFFFF',
+        backgroundImageUrl: config.backgroundImageUrl,
+        backgroundSize: config.backgroundSize,
+        backgroundPosition: config.backgroundPosition,
+        borderRadius: config.borderRadius || 0,
+        elevation: config.elevation !== undefined ? config.elevation : 2,
+        showCloseButton: config.showCloseButton !== false,
+        margin: config.margin || { top: 0, bottom: 0, left: 0, right: 0 },
+        overlay: {
+            enabled: config.overlay?.enabled ?? false,
+            opacity: config.overlay?.opacity ?? 0.5,
+            blur: config.overlay?.blur ?? 0,
+            dismissOnSwipe: config.overlay?.dismissOnSwipe ?? true,
+        },
+        animation: config.animation || {
+            enabled: true,
+            type: 'slide',
+            duration: 300,
+            easing: 'ease-out'
+        },
+        shadow: config.shadow || {
+            enabled: true,
+            color: 'rgba(0,0,0,0.1)',
+            x: 0,
+            y: 4,
+            blur: 12,
+            spread: 0,
+            opacity: 0.1
+        },
+        timing: config.timing || { delay: 0, duration: 0 },
+    } as BannerConfig;
+}
+
+/**
+ * Extract scratch card config from backend config
+ */
+function extractScratchCardConfig(config: Record<string, any>): ScratchCardConfig {
+    return {
+        width: config.width || 300,
+        height: config.height || 400,
+        backgroundColor: config.backgroundColor || '#FFFFFF',
+        backgroundImageUrl: config.backgroundImageUrl,
+        backgroundSize: config.backgroundSize || 'cover',
+        borderRadius: config.borderRadius || 16,
+        position: config.position || 'center',
+        coverType: config.coverType || 'color',
+        coverColor: config.coverColor || '#CCCCCC',
+        coverImage: config.coverImage,
+        scratchSize: config.scratchSize || 20,
+        scratchType: config.scratchType || 'brush', // Required field — default to brush
+        revealThreshold: config.revealThreshold || 50,
+        autoReveal: config.autoReveal !== false,
+        rewardId: config.rewardId,
+        fallbackRewardState: config.fallbackRewardState,
+        scratchArea: config.scratchArea || { x: 0, y: 0, width: '100%', height: '100%' },
+        completionAnimation: config.completionAnimation || {
+            type: 'confetti',
+            duration: 3000,
+            loop: false
+        },
+        overlay: {
+            enabled: config.overlay?.enabled ?? true,
+            opacity: config.overlay?.opacity ?? 0.5,
+            blur: config.overlay?.blur ?? 0,
+            color: config.overlay?.color ?? '#000000',
+            dismissOnClick: config.overlay?.dismissOnClick ?? true
+        },
+        timing: config.timing || { delay: 0, duration: 0 }
+    };
+}
+
+/**
+ * Get default display rules
+ */
+function getDefaultDisplayRules(): DisplayRules {
+    return {
+        frequency: { type: 'every_time' },
+        interactionLimit: { type: 'unlimited' },
+        sessionLimit: { enabled: false },
+        overrideGlobal: false,
+        priority: 50,
+        platforms: ['ios', 'android'],
+    };
+}
+/**
+ * Build a nested components tree from flat layers list
+ * This matches the structure expected by the Flutter renderer
+ */
+function buildComponentsTree(layers: Layer[]): any[] {
+    // 1. Find root layers (those whose parent is null or not in the list)
+    const layerMap = new Map<string, Layer>();
+    layers.forEach(l => layerMap.set(l.id, l));
+
+    const rootLayers = layers.filter(l => !l.parent || !layerMap.has(l.parent));
+
+    // 2. Recursive builder
+    const buildNode = (layer: Layer): any => {
+        const children = (layer.children || [])
+            .map(childId => layerMap.get(childId))
+            .filter((l): l is Layer => !!l)
+            .map(buildNode);
+
+        // Map Layer to Component JSON
+        return {
+            id: layer.id,
+            type: layer.type,
+            name: layer.name,
+            visible: layer.visible !== false,
+            content: { ...layer.content }, // Clone content
+            style: { ...layer.style },     // Clone style
+            position: { ...layer.position }, // Clone position
+            size: { ...layer.size },       // Clone size
+            children: children,            // Nested children
+            // Add any specific properties needed by renderer
+            flexLayout: layer.type === 'container' ? {
+                enabled: layer.style?.display === 'flex',
+                direction: layer.style?.flexDirection || 'column',
+                justifyContent: layer.style?.justifyContent || 'flex-start',
+                alignItems: layer.style?.alignItems || 'stretch',
+                gap: layer.style?.gap || 0,
+                flexWrap: layer.style?.flexWrap || 'nowrap',
+            } : undefined,
+            flexChild: layer.parent ? ({
+                flexGrow: (layer.style as any)?.flexGrow || 0,
+                flexShrink: (layer.style as any)?.flexShrink || 1,
+                alignSelf: (layer.style as any)?.alignSelf || 'auto',
+                minWidth: layer.style?.minWidth,
+                maxWidth: layer.style?.maxWidth,
+                minHeight: layer.style?.minHeight,
+                maxHeight: layer.style?.maxHeight,
+            } as any) : undefined,
+        };
+    };
+
+    // 3. Build tree
+    return rootLayers.map(buildNode);
+}

@@ -1,0 +1,4667 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ArrowLeft, Save, Rocket, MessageSquare, Smartphone, Film, Target, Flame, ClipboardList, ClipboardPaste, Square, Zap, Image as ImageIcon, Menu, X, ChevronDown, ChevronRight, Eye, EyeOff, Lock, Unlock, Plus, Trash2, Type, Palette, Settings2, Maximize2, Layout, MessageCircle, Info, ImageIcon as PictureIcon, CreditCard, PlayCircle, Grid3x3, Link2, Undo2, Redo2, Copy, LayoutGrid, Upload, Compass, Link, Send, Code, CircleOff, LayoutTemplate, RefreshCw, Layers, Globe, Check, GalleryHorizontal, Eraser, Timer, GripVertical, Gamepad2, RotateCw, PlaySquare } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { apiClient } from '@/lib/api';
+import { useEditorStore, getDefaultLayersForNudgeType, TooltipConfig, Layer } from '@/store/useEditorStore';
+import { useStore } from '@/store/useStore';
+import { GridElementProvider } from '@/components/campaign/renderers/GridElementContext';
+import { theme } from '@/styles/design-tokens';
+
+import { validateNumericInput, validatePercentage, validateOpacity, validateDimension, validateColor } from '@/lib/validation';
+
+import { TooltipRenderer } from '@/components/TooltipRenderer';
+import { FloaterRenderer } from '@/components/FloaterRenderer';
+import { FullScreenRenderer } from '@/components/FullScreenRenderer';
+import { SlideContainerRenderer } from '@/components/campaign/renderers/SlideContainerRenderer';
+import { BottomSheetRenderer } from '@/components/BottomSheetRenderer';
+import { PositionEditor } from '@/components/editor/style/PositionEditor';
+import { ShapeEditor } from '@/components/editor/style/ShapeEditor';
+import { DESIGN_TYPES, TEMPLATES, DESIGN_CATEGORIES } from '@/lib/designTypes';
+
+import { PhonePreview } from '@/components/editor/PhonePreview';
+import { PreviewToolbar } from '@/components/editor/PreviewToolbar';
+import { DEVICE_PRESETS, DEFAULT_DEVICE_ID } from '@/lib/devicePresets';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import TemplateGallery from '@/components/campaign/TemplateGallery';
+import { SaveTemplateModal } from '@/components/campaign/SaveTemplateModal';
+import { FloaterMinimalEditor } from '@/components/campaign/editors/FloaterMinimalEditor';
+import { TooltipMinimalEditor } from '@/components/campaign/editors/TooltipMinimalEditor';
+import { BottomSheetMinimalEditor } from '@/components/campaign/editors/BottomSheetMinimalEditor';
+import { FullScreenMinimalEditor } from '@/components/campaign/editors/FullScreenMinimalEditor';
+import { StoriesMinimalEditor } from '@/components/campaign/editors/StoriesMinimalEditor';
+import { StoryCubeTransition } from '@/components/campaign/renderers/StoryCubeTransition';
+import { SlideMinimalEditor } from '@/components/campaign/editors/SlideMinimalEditor';
+import { CommonStyleControls } from '@/components/campaign/editors/shared/CommonStyleControls';
+import { SizeControls } from '@/components/campaign/editors/shared/SizeControls';
+import { TextEditor } from '@/components/campaign/editors/layers/TextEditor';
+import { ButtonEditor } from '@/components/campaign/editors/layers/ButtonEditor';
+import { InputEditor } from '@/components/campaign/editors/layers/InputEditor';
+import { CopyButtonEditor } from '@/components/campaign/editors/layers/CopyButtonEditor';
+import { ContainerEditor } from '@/components/campaign/editors/layers/ContainerEditor';
+import { MediaEditor } from '@/components/campaign/editors/layers/MediaEditor';
+import { LottieEditor } from '@/components/campaign/editors/layers/LottieEditor';
+import { RiveEditor } from '@/components/campaign/editors/layers/RiveEditor';
+import { ProgressBarEditor } from '@/components/campaign/editors/layers/ProgressBarEditor';
+import { StatisticEditor } from '@/components/campaign/editors/layers/StatisticEditor';
+import { GradientEditor } from '@/components/campaign/editors/layers/GradientEditor';
+import { ScratchFoilEditor } from '@/components/campaign/editors/layers/ScratchFoilEditor';
+import { CarouselLayerEditor } from '@/components/campaign/editors/layers/CarouselLayerEditor';
+import { CountdownEditor } from '@/components/campaign/editors/layers/CountdownEditor';
+import { SpinTheWheelEditor } from '@/components/campaign/editors/SpinTheWheelEditor';
+import { GridContainerEditor } from '@/components/campaign/editors/layers/GridContainerEditor';
+import { GridItemEditor } from '@/components/campaign/editors/layers/GridItemEditor';
+import { CustomHtmlEditor } from '@/components/campaign/editors/layers/CustomHtmlEditor';
+
+import { InterfacesList } from '@/components/campaign/InterfacesList';
+import { InterfaceTypeSelector } from '@/components/campaign/InterfaceTypeSelector';
+import { BOTTOM_SHEET_TEMPLATES } from '@/lib/bottomSheetTemplates';
+
+
+
+const colors = {
+  primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
+  gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' },
+  purple: { 50: '#f5f3ff', 500: '#8b5cf6', 600: '#7c3aed' },
+  green: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a' },
+  red: { 50: '#fef2f2', 100: '#fee2e2', 500: '#ef4444', 600: '#dc2626' },
+  orange: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c' },
+  text: { primary: '#111827', secondary: '#6b7280', tertiary: '#9ca3af' },
+  border: { default: '#e5e7eb' },
+  background: { card: '#ffffff', page: '#f9fafb' }
+};
+
+const experienceTypes = [
+  { id: 'nudges', label: 'In-app nudges', Icon: MessageSquare, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+  { id: 'messages', label: 'Messages', Icon: Smartphone, gradient: 'linear-gradient(135deg, #FF6B6B 0%, #556270 100%)' },
+  { id: 'stories', label: 'Stories', Icon: Film, gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { id: 'challenges', label: 'Challenges', Icon: Target, gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+  { id: 'streaks', label: 'Streaks', Icon: Flame, gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+  { id: 'survey', label: 'Survey', Icon: ClipboardList, gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }
+];
+
+const nudgeTypes = [
+  { id: 'bottomsheet', label: 'Bottom Sheet', Icon: Square, bg: '#D1FAE5', iconBg: '#A7F3D0', iconColor: '#10B981' },
+  { id: 'tooltip', label: 'Tooltip', Icon: MessageCircle, bg: '#FEF3C7', iconBg: '#FDE68A', iconColor: '#F59E0B' },
+  // PIP removed - Floater now handles PIP functionality
+  { id: 'floater', label: 'Floater', Icon: Film, bg: '#D1FAE5', iconBg: '#A7F3D0', iconColor: '#10B981' },
+  { id: 'fullscreen', label: 'Full Screen', Icon: LayoutTemplate, bg: '#E0E7FF', iconBg: '#C7D2FE', iconColor: '#6366F1' },
+  { id: 'inline_stories', label: 'Inline Stories', Icon: LayoutGrid, bg: '#FDF2F8', iconBg: '#FBCFE8', iconColor: '#DB2777', disabled: true },
+];
+
+
+const EXPERIENCE_MAPPING: Record<string, string[]> = {
+  'nudges': ['tooltip'],
+  'messages': ['floater', 'bottomsheet', 'fullscreen'], // Restricted as per user request
+  'stories': ['inline_stories', 'fullscreen'],
+  'scratchcard': ['floater', 'fullscreen'],
+  // Default fallbacks for others or future types
+  'challenges': [],
+  'streaks': [],
+  'survey': []
+};
+
+export const DesignStep: React.FC<any> = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Zustand Editor Store
+  const {
+    currentCampaign,
+    activeTab,
+    propertyTab,
+    showEditor,
+    isSaving,
+    saveError,
+    createCampaign,
+    updateCampaign, // ✅ FIX: Add updateCampaign to destructuring
+    updateCampaignName,
+    updateTrigger,
+    updateScreen,
+    updateStatus,
+    saveTemplate,
+    editorMode,
+    saveCampaign,
+    setShowEditor,
+    updateLayerContent,
+    updateLayerStyle,
+    moveLayerToParent,
+    selectLayer,
+    toggleLayerVisibility,
+    toggleLayerLock,
+    deleteLayer,
+    updateLayer,
+    updateBottomSheetConfig,
+    updateBannerConfig,
+    updateTooltipConfig,
+    updatePipConfig,
+    updateFloaterConfig,
+    updateScratchCardConfig, // ✅ FIX: Add missing updater
+    loadCampaign,
+    setActiveTab,
+    setPropertyTab,
+    addLayer,
+    setEditorMode,
+    isTemplateModalOpen, // ✅ FIX: Add store state
+    setTemplateModalOpen, // ✅ FIX: Add store action
+    isSaveTemplateModalOpen, // ✅ FIX: Add store state
+    setSaveTemplateModalOpen, // ✅ FIX: Add store action
+    enableAutoSave: startAutoSave, // Alias to avoid potential shadowing issues
+    // Interface Management
+    activeInterfaceId,
+    setActiveInterface,
+    addInterface,
+    deleteInterface,
+    // Saved Callbacks
+    customCallbackIds,
+    addCustomCallbackId,
+    fetchMetadata,
+    availablePages,
+    // Stories Management
+    activeStoryId,
+    setActiveStory,
+    copyLayerToClipboard,
+    pasteLayerFromClipboard,
+    snapThreshold,
+    setSnapThreshold,
+    // Undo/Redo
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useEditorStore();
+
+  const [copiedLayerType, setCopiedLayerType] = useState<string | null>(() => {
+    try {
+      const copied = localStorage.getItem('copied_layer');
+      if (copied) {
+        const parsed = JSON.parse(copied);
+        return parsed.layerType || null;
+      }
+    } catch (_) {}
+    return null;
+  });
+
+  const handleCopyLayer = (id: string) => {
+    copyLayerToClipboard(id);
+    try {
+      const copied = localStorage.getItem('copied_layer');
+      if (copied) {
+        const parsed = JSON.parse(copied);
+        setCopiedLayerType(parsed.layerType || null);
+      }
+    } catch (_) {}
+  };
+
+  const { rewards, fetchRewards } = useStore();
+
+  useEffect(() => {
+    fetchRewards();
+  }, [fetchRewards]);
+
+  // Scratch Card Reward Injection Logic
+  const selectedRewardDetails = React.useMemo(() => {
+    if ((currentCampaign?.type === 'scratchcard' || currentCampaign?.nudgeType === 'scratchcard') && currentCampaign?.scratchCardConfig?.rewardId) {
+      return rewards.find(r => r.id === currentCampaign.scratchCardConfig.rewardId) || null;
+    }
+    return null;
+  }, [currentCampaign?.type, currentCampaign?.nudgeType, currentCampaign?.scratchCardConfig?.rewardId, rewards]);
+
+  // Fetch metadata on mount if missing
+  useEffect(() => {
+    if (availablePages.length === 0) {
+      console.log('DesignStep: Fetching metadata (pages/events)...');
+      fetchMetadata();
+    }
+  }, []);
+
+  // Undo/Redo keyboard shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea/contenteditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+
+      if (isCtrlOrMeta && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo()) undo();
+      } else if (
+        isCtrlOrMeta &&
+        (e.key === 'y' || (e.key === 'z' && e.shiftKey) || (e.key === 'Z' && e.shiftKey))
+      ) {
+        e.preventDefault();
+        if (canRedo()) redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, canUndo, canRedo]);
+
+  // Local UI state
+
+  const [selectedExperience, setSelectedExperience] = useState<string | null>('nudges');
+  const [selectedNudgeType, setSelectedNudgeType] = useState<string | null>(currentCampaign?.nudgeType || null);
+
+  const [isCreating, setIsCreating] = useState(!!searchParams.get('experience')); // Auto-open if experience param exists
+  const [filterCategory, setFilterCategory] = useState<string>('all'); // Filter state for selection view
+  const [selectedExperienceType, setSelectedExperienceType] = useState<string | null>(null); // Track selected experience
+  const [selectedDevice, setSelectedDevice] = useState<string>(DEFAULT_DEVICE_ID); // Device selection for preview
+  const [previewZoom, setPreviewZoom] = useState<number>(0.7); // Preview zoom level
+  const [previewBackgroundUrl, setPreviewBackgroundUrl] = useState<string | null>(null); // NEW: Preview Background State
+  const [showGrid, setShowGrid] = useState<boolean>(false); // Grid overlay toggle
+  const [showInterfaceSelector, setShowInterfaceSelector] = useState<boolean>(false); // Interface type selector modal
+  const [isInterfaceModalOpen, setIsInterfaceModalOpen] = useState<boolean>(false); // NEW MODAL STATE
+
+  // Auto-Scale Zoom when Device Changes
+  useEffect(() => {
+    const device = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+    if (device) {
+      // Target height for preview area is roughly 650px to 700px
+      const targetHeight = 650;
+      const idealScale = targetHeight / device.height;
+
+      // Clamp scale between 0.2 and 1.0
+      const clampedScale = Math.min(Math.max(idealScale, 0.2), 1.0);
+
+      // Round to 2 decimals
+      const rounded = Math.round(clampedScale * 100) / 100;
+
+      setPreviewZoom((!Number.isNaN(rounded) && rounded > 0) ? rounded : 0.7);
+    }
+  }, [selectedDevice]);
+
+
+  const lastAddRef = useRef(0);
+
+  const handleAddLayer = (type: string, parentId: string | null, name?: string) => {
+    const now = Date.now();
+    if (now - lastAddRef.current < 500) return; // 500ms debounce to prevent duplicates
+    lastAddRef.current = now;
+
+    addLayer(type as any, parentId, name);
+    setLayerAddMenuId(null);
+    toast.success(`Added ${name || type} layer`);
+  };
+
+  const [isInteractive, setIsInteractive] = useState(false); // Global interact mode for preview Toggle
+  const [isPreview, setIsPreview] = useState(false); // New Preview Mode
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0); // Key to force re-mount/reset on preview
+  const [previewInterfaceId, setPreviewInterfaceId] = useState<string | null>(null); // Interface shown in preview
+
+  // Toggle Preview Logic
+  const togglePreview = () => {
+    setIsPreview(prev => {
+      const newState = !prev;
+      if (newState) {
+        // Entering preview: Reset key to force fresh state (unscratched)
+        setPreviewRefreshKey(k => k + 1);
+        setIsInteractive(true); // Force interactive on
+
+        // Auto-open active interface if editing one
+        if (activeInterfaceId) {
+          setPreviewInterfaceId(activeInterfaceId);
+        } else {
+          setPreviewInterfaceId(null); // Reset to main campaign
+        }
+
+        toast.info("Preview Mode: Interact with the card!");
+      } else {
+        setIsInteractive(false); // Reset interactive
+        setPreviewInterfaceId(null); // Reset to main campaign
+      }
+      return newState;
+    });
+  };
+
+  // Handle navigation action in preview mode
+  const handlePreviewNavigate = (screenName: string) => {
+    if (!isInteractive && !isPreview) return;
+    toast.success(`Navigating to: ${screenName}`);
+  };
+
+  // Handle interface action in preview mode
+  const handleInterfaceAction = (actionOrId: string | any) => {
+    if (!isInteractive && !isPreview) return;
+
+    // Handle legacy string ID (direct interface navigation)
+    if (typeof actionOrId === 'string') {
+      if (actionOrId === 'root') {
+        setPreviewInterfaceId(null);
+        toast.success('Navigated to Main Campaign');
+        return;
+      }
+      const targetInterface = currentCampaign?.interfaces?.find((i: any) => i.id === actionOrId);
+      if (targetInterface) {
+        setPreviewInterfaceId(actionOrId);
+        toast.success(`Showing: ${targetInterface.name}`);
+      }
+      return;
+    }
+
+    // Handle Action Object (from InputRenderer, etc.)
+    if (typeof actionOrId === 'object' && actionOrId !== null) {
+      const action = actionOrId;
+      console.log('[DesignStep] Handling action:', action);
+
+      switch (action.type) {
+        case 'interface':
+          if (action.interfaceId) {
+            const targetInterface = currentCampaign?.interfaces?.find((i: any) => i.id === action.interfaceId);
+            if (targetInterface) {
+              setPreviewInterfaceId(action.interfaceId);
+              toast.success(`Showing: ${targetInterface.name}`);
+            } else if (action.interfaceId === 'root') {
+              setPreviewInterfaceId(null);
+              toast.success('Navigated to Main Campaign');
+            }
+          }
+          break;
+
+        case 'link':
+          // Explicit External URL
+          if (action.url) {
+            window.open(action.url, '_blank');
+            toast.success(`External Link: ${action.url}`);
+          }
+          break;
+
+        case 'deeplink':
+          // Deep Link (Simulate or Log)
+          if (action.url) {
+            console.log('Deep Link Triggered:', action.url);
+            toast.info(`Deep Link (Simulated): ${action.url}`);
+          }
+          break;
+
+        case 'navigate':
+          // Legacy Type or Internal Screen
+          if (action.screenName) {
+            toast.success(`Navigating to Screen: ${action.screenName}`);
+          } else if (action.url) {
+            // Legacy External URL fallback
+            window.open(action.url, '_blank');
+          }
+          break;
+
+        case 'close':
+          toast.info('Dismiss action triggered');
+          break;
+      }
+    }
+  };
+
+  // Close previewed interface (go back to main campaign)
+  const closePreviewInterface = () => {
+    if (isInteractive) {
+      setIsPreviewDismissed(true);
+    } else {
+      setPreviewInterfaceId(null);
+      toast.info('Back to main campaign');
+    }
+  };
+
+  const [layerAddMenuId, setLayerAddMenuId] = useState<string | null>(null);
+  const [layerAddMenuPosition, setLayerAddMenuPosition] = useState<{ top: number; left: number; openUpward?: boolean } | null>(null);
+  const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
+  const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null); // Fix 3
+  const [collapsedLayers, setCollapsedLayers] = useState<Set<string>>(new Set()); // For layer hierarchy
+
+  // Renaming State
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  // Context Menu State
+  const [layerContextMenuId, setLayerContextMenuId] = useState<string | null>(null);
+  const [layerContextMenuPosition, setLayerContextMenuPosition] = useState<{ top: number; left: number; openUpward?: boolean } | null>(null);
+
+  const handleRenameStart = (layer: any) => {
+    setEditingLayerId(layer.id);
+    setEditingName(layer.name);
+    setLayerContextMenuId(null); // Close menu if open
+  };
+
+  const handleRenameSubmit = () => {
+    if (editingLayerId && editingName.trim()) {
+      updateLayer(editingLayerId, { name: editingName.trim() });
+      toast.success('Layer renamed');
+    }
+    setEditingLayerId(null);
+    setEditingName('');
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, layerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const spaceBelow = window.innerHeight - e.clientY;
+    const openUpward = spaceBelow < 180; // Estimate context menu height at 180px
+    setLayerContextMenuId(layerId);
+    setLayerContextMenuPosition({
+      top: e.clientY,
+      left: e.clientX,
+      openUpward
+    });
+    setLayerAddMenuId(null); // Close add menu if open
+  };
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setLayerAddMenuId(null);
+      setLayerAddMenuPosition(null);
+      setLayerContextMenuId(null);
+      setLayerContextMenuPosition(null);
+      if (editingLayerId) {
+        handleRenameSubmit();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    // document.addEventListener('contextmenu', handleClickOutside); // Don't block system context menu everywhere, just ours
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      // document.removeEventListener('contextmenu', handleClickOutside);
+    };
+  }, [editingLayerId, editingName]);
+
+
+  // Close layer menu on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setLayerAddMenuId(null);
+      setLayerAddMenuPosition(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
+  // Context Switching: Determine which layers/config to display based on activeInterfaceId
+  const activeInterface = activeInterfaceId
+    ? currentCampaign?.interfaces?.find((i: any) => i.id === activeInterfaceId)
+    : null;
+
+  // FIX: Sync selectedNudgeType with activeInterface to ensure correct editor is shown
+  useEffect(() => {
+    if (activeInterface) {
+      console.log('Syncing selectedNudgeType to active interface:', activeInterface.nudgeType);
+      setSelectedNudgeType(activeInterface.nudgeType);
+    } else if (currentCampaign?.nudgeType) {
+      console.log('Syncing selectedNudgeType to main campaign:', currentCampaign.nudgeType);
+      setSelectedNudgeType(currentCampaign.nudgeType);
+    }
+  }, [activeInterface?.id, activeInterface?.nudgeType, currentCampaign?.nudgeType]);
+
+  // Display layers: from active story, active interface, or main campaign
+  const activeStory = activeStoryId
+    ? currentCampaign?.stories?.find((s: any) => s.id === activeStoryId)
+    : null;
+  const displayLayers = activeStory?.layers || activeInterface?.layers || currentCampaign?.layers || [];
+  const displayNudgeType = activeInterface?.nudgeType || currentCampaign?.nudgeType || 'modal';
+
+  // Derived state for selected layer (searches in active context)
+  const selectedLayerId = currentCampaign?.selectedLayerId || null;
+  const selectedLayerObj = displayLayers?.find((layer: any) => layer.id === selectedLayerId);
+
+  // Property panel state
+  const [borderRadiusValue, setBorderRadiusValue] = useState(8);
+
+  // FIX #20: Debounce timer ref for slider inputs
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
+
+  // Page Feature State - Extended type to include elements and deviceMetadata
+  const [pages, setPages] = useState<{
+    _id: string;
+    name: string;
+    pageTag: string;
+    elements?: { id: string; rect?: { x: number; y: number; width: number; height: number } }[];
+    deviceMetadata?: { width: number; height: number; density?: number };
+    scrollData?: { pageScrollY?: number; pageScrollX?: number; maxScrollExtentY?: number; maxScrollExtentX?: number };
+    imageUrl?: string;
+  }[]>([]);
+
+  // Fetch pages on mountt
+  useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        const response = await apiClient.listPages();
+        if (response && response.pages) {
+          setPages(response.pages);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pages:', error);
+      }
+    };
+    fetchPages();
+  }, []);
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [isPreviewDismissed, setIsPreviewDismissed] = useState(false); // Track if preview is dismissed
+
+  // Fix: Reset dismissed state when interactive mode or preview mode ends
+  useEffect(() => {
+    if (!isInteractive && !isPreview) {
+      setIsPreviewDismissed(false);
+    }
+  }, [isInteractive, isPreview]);
+
+  // Derive selected page object
+  const activePageId = selectedPageId
+    ? selectedPageId
+    : selectedNudgeType === 'tooltip' && currentCampaign?.tooltipConfig?.targetPageId
+      ? currentCampaign.tooltipConfig.targetPageId
+      : null;
+
+  const selectedPage = pages.find(p => p._id === activePageId);
+
+
+
+  useEffect(() => {
+    // Sync Selected Page to Campaign Config (If needed)
+    // currently we just use it for local preview context
+  }, [selectedPageId]);
+
+
+
+  // Handle Experience Selection
+  const handleExperienceSelect = (id: string) => {
+    setSelectedExperience(id);
+    toast.success(`${experienceTypes.find(e => e.id === id)?.label} selected`);
+  };
+
+  // Handle Nudge Type Selection
+  const handleNudgeTypeSelect = (id: string) => {
+    setSelectedNudgeType(id);
+
+    // Create new campaign with selected nudge type
+    createCampaign(
+      (selectedExperience || selectedExperienceType) as any || 'nudges',
+      id as any
+    );
+
+    // FIX: Navigate to the new campaign ID immediately to prevent CampaignBuilder from resetting it
+    const { currentCampaign } = useEditorStore.getState();
+    if (currentCampaign?.id) {
+      navigate(`/campaign-builder?id=${currentCampaign.id}&experience=${selectedExperience || selectedExperienceType || 'nudges'}`, { replace: true });
+    }
+
+    setShowEditor(true);
+    toast.info('Opening editor...');
+  };
+
+  const handleSafeInterfaceAttach = (id: string) => {
+    setSelectedNudgeType(id);
+    
+    // Safety bootstrapping for existing campaigns that don't have the configs
+    let updates: any = { nudgeType: id };
+    
+    // Add default layers if campaign doesn't have any
+    if (!currentCampaign?.layers || currentCampaign.layers.length === 0) {
+      updates.layers = getDefaultLayersForNudgeType(id as any);
+    }
+    
+    if (id === 'floater' && !currentCampaign?.floaterConfig) {
+      updates.floaterConfig = {
+        mode: 'image',
+        position: 'bottom-right',
+        offsetX: 20,
+        offsetY: 20,
+        width: 320,
+        height: 180,
+        borderRadius: 16,
+        backgroundColor: '#10B981',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+        showCloseButton: true,
+        controls: {
+          closeButton: { show: true, position: 'top-right', size: 14 },
+          expandButton: { show: false, position: 'top-left', size: 14 },
+          muteButton: { show: true, position: 'bottom-right', size: 14 },
+          progressBar: { show: true, position: 'bottom' }
+        }
+      };
+    } else if (id === 'bottomsheet' && !currentCampaign?.bottomSheetConfig) {
+      updates.bottomSheetConfig = {
+        mode: 'container',
+        height: 'half',
+        dragHandle: true,
+        swipeToDismiss: true,
+        backgroundColor: '#FFFFFF',
+        borderRadius: { topLeft: 16, topRight: 16, bottomLeft: 0, bottomRight: 0 },
+        elevation: 2,
+        overlay: { enabled: true, opacity: 0.5, blur: 0, color: '#000000', dismissOnClick: true },
+        animation: { type: 'slide', duration: 300, easing: 'ease-out' },
+      };
+    } else if (id === 'fullpage' && !currentCampaign?.fullscreenConfig) {
+       updates.fullscreenConfig = {
+        backgroundColor: '#FFFFFF',
+        animation: { type: 'slide', duration: 400, easing: 'ease-out' },
+      };
+    }
+    
+    updateCampaign(updates);
+    setIsInterfaceModalOpen(false);
+    toast.success(`${DESIGN_TYPES.find(d => d.id === id)?.label || 'Interface'} selected!`);
+  };
+
+  // Handle property updates with real-time store sync
+  const handleContentUpdate = (field: string, value: any) => {
+    if (!selectedLayerId) return;
+    updateLayerContent(selectedLayerId, { [field]: value });
+  };
+
+  const handleStyleUpdate = (field: string, value: any) => {
+    if (!selectedLayerId) return;
+    updateLayerStyle(selectedLayerId, { [field]: value });
+  };
+
+  const handleTooltipUpdate = (field: string, value: any) => {
+    updateTooltipConfig({ [field]: value });
+  };
+
+  const handleNavigate = (pageTag: string) => {
+    const targetPage = pages.find(p => p.pageTag === pageTag);
+    if (targetPage) {
+      setSelectedPageId(targetPage._id);
+      toast.success(`Navigating to ${targetPage.name} (Preview)`);
+    } else {
+      toast.error(`Page with tag "${pageTag}" not found`);
+    }
+  };
+
+  // Image upload handler — uploads to Asset Library (S3/CloudFront) instead of base64
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'layer' | 'background' | 'tooltip_image_only') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const isOtherSupported = file.name.endsWith('.pdf') || file.name.endsWith('.json') || file.name.endsWith('.riv') || file.name.endsWith('.csv') || file.name.endsWith('.txt');
+
+    if (!isImage && !isVideo && !isOtherSupported) {
+      toast.error('Unsupported file format. Please select an image, video, PDF, Lottie (.json), Rive (.riv), CSV, or TXT file.');
+      return;
+    }
+
+    // Validate file size (10MB max — matches Asset Library limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+
+    // Try API upload first (saves to Asset Library + AWS S3)
+    try {
+      const asset = await apiClient.uploadAsset(file);
+      const imageUrl = asset.url; // S3 secure URL (CloudFront)
+
+      if (target === 'layer') {
+        handleContentUpdate('imageUrl', imageUrl);
+        toast.success('File uploaded to Asset Library');
+      } else if (target === 'tooltip_image_only') {
+        updateTooltipConfig({ imageUrl });
+        toast.success('Tooltip media uploaded');
+      } else {
+        handleStyleUpdate('backgroundImage', `url('${imageUrl}')`);
+        toast.success('Background media uploaded');
+      }
+    } catch (err) {
+      // Fallback to base64 if API fails
+      console.warn('API upload failed, falling back to base64:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (target === 'layer') {
+          handleContentUpdate('imageUrl', base64);
+        } else if (target === 'tooltip_image_only') {
+          updateTooltipConfig({ imageUrl: base64 });
+        } else {
+          handleStyleUpdate('backgroundImage', `url('${base64}')`);
+        }
+        toast.success('File uploaded (local)');
+      };
+      reader.onerror = () => toast.error('Failed to upload file');
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Drag and Drop Handlers for Layer Reordering
+  const handleDragStart = (e: React.DragEvent, layerId: string) => {
+    setDraggedLayerId(layerId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Add a subtle visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedLayerId(null);
+    setDragOverLayerId(null);
+    setDropPosition(null); // Fix 3
+    // Reset opacity
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, layerId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (draggedLayerId && draggedLayerId !== layerId) {
+      setDragOverLayerId(layerId);
+
+      // Calculate drop position (Fix 3 - Enhanced visual feedback)
+      const targetElement = e.currentTarget as HTMLElement;
+      const rect = targetElement.getBoundingClientRect();
+      const mouseY = e.clientY;
+      const relativeY = mouseY - rect.top;
+      const height = rect.height;
+
+      // Determine if drop should be before, after, or inside (for containers)
+      const targetLayer = campaignLayers.find(l => l.id === layerId);
+      // FIX: Treat 'tooltip' and 'container' types as drop targets for 'inside'
+      // Also check layer NAME for containers - check specifically for 'Container' word (not just 'tooltip')
+      const layerType = targetLayer?.type as string;
+      const layerName = (targetLayer?.name || '');
+      const isContainerByType = layerType === 'container' || layerType === 'tooltip';
+      // Only match names that end with 'Container' or have 'Container' as a word
+      const isContainerByName = layerName.endsWith('Container') || layerName.includes(' Container');
+      const isContainer = isContainerByType || isContainerByName;
+
+      // 🔥 DEBUG: Log drag calculation
+      const relativePercent = Math.round((relativeY / height) * 100);
+      console.log(`[handleDragOver] target: ${targetLayer?.name}, type: ${layerType}, isContainer: ${isContainer}, relativeY: ${relativePercent}%`);
+
+      // For containers: use larger 'inside' zone (10-90%) to make dropping inside easier
+      // For non-containers: only allow before/after
+      if (isContainer) {
+        if (relativeY < height * 0.1) {
+          setDropPosition('before');
+        } else if (relativeY > height * 0.9) {
+          setDropPosition('after');
+        } else {
+          setDropPosition('inside'); // Most of container row = inside
+        }
+      } else {
+        // Non-container: split at 50%
+        if (relativeY < height * 0.5) {
+          setDropPosition('before');
+        } else {
+          setDropPosition('after');
+        }
+      }
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverLayerId(null);
+    setDropPosition(null); // Fix 3
+  };
+
+  const handleDrop = (e: React.DragEvent, targetLayerId: string) => {
+    e.preventDefault();
+
+    if (!draggedLayerId || draggedLayerId === targetLayerId) {
+      setDraggedLayerId(null);
+      setDragOverLayerId(null);
+      setDropPosition(null);
+      return;
+    }
+
+    const draggedLayer = campaignLayers.find(l => l.id === draggedLayerId);
+    const targetLayer = campaignLayers.find(l => l.id === targetLayerId);
+
+    if (!draggedLayer || !targetLayer || !currentCampaign) {
+      setDraggedLayerId(null);
+      setDragOverLayerId(null);
+      setDropPosition(null);
+      return;
+    }
+
+    // Handle different drop positions
+    // FIX: Allow dropping inside both 'container' and 'tooltip' type layers
+    // Also check layer NAME for containers - check specifically for 'Container' word
+    const targetType = targetLayer.type as string;
+    const targetLayerName = targetLayer.name || '';
+    const isContainerByType = targetType === 'container' || targetType === 'tooltip';
+    // Only match names that end with 'Container' or have 'Container' as a word
+    const isContainerByName = targetLayerName.endsWith('Container') || targetLayerName.includes(' Container');
+    const isContainer = isContainerByType || isContainerByName;
+
+    // 🔥 DEBUG: Log drop info
+    console.log(`[handleDrop] dropPosition: ${dropPosition}, targetType: ${targetType}, isContainer: ${isContainer}, targetName: ${targetLayer.name}`);
+
+    if (dropPosition === 'inside' && isContainer) {
+      // Move layer inside the container (make it a child)
+      moveLayerToParent(draggedLayerId, targetLayerId);
+      toast.success(`"${draggedLayer.name}" moved inside "${targetLayer.name}"`);
+    } else {
+      // Reorder at same level (before/after)
+      const draggedIndex = campaignLayers.findIndex(l => l.id === draggedLayerId);
+      const targetIndex = campaignLayers.findIndex(l => l.id === targetLayerId);
+
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+        const { reorderLayer } = useEditorStore.getState();
+        const adjustedIndex = dropPosition === 'after' ? targetIndex + 1 : targetIndex;
+        reorderLayer(draggedLayerId, adjustedIndex);
+        toast.success('Layer reordered');
+      }
+    }
+
+    setDraggedLayerId(null);
+    setDragOverLayerId(null);
+    setDropPosition(null);
+  };
+
+
+
+  // Enable auto-save on mount
+  // useEffect(() => {
+  //   console.log('DesignStep mounted - AutoSave temporarily disabled for debugging');
+  //   // initializeAutoSave();
+  //   return () => {
+  //     // Cleanup handled by store
+  //   };
+  // }, []);
+
+  // FIX: Conflicting useEffect removed.
+  // Logic merged into line 245 (Interface Sync) to prevent state flapping.
+
+  // Auto-save initialization
+  useEffect(() => {
+    if (startAutoSave) {
+      console.log('DesignStep: Initializing auto-save...');
+      startAutoSave();
+    } else {
+      console.error('DesignStep: startAutoSave is undefined!');
+    }
+  }, [startAutoSave]);
+
+  // FIX: Reset editor state if no campaign is selected but editor is shown
+  useEffect(() => {
+    if (showEditor && !currentCampaign) {
+      console.warn('DesignStep: showEditor is true but currentCampaign is null. Resetting state.');
+      setShowEditor(false);
+      setIsCreating(false);
+      setSelectedNudgeType(null);
+    }
+  }, [showEditor, currentCampaign, setShowEditor]);
+
+  // Check URL params for experience type (when coming from CreateCampaignModal)
+  useEffect(() => {
+    const experienceParam = searchParams.get('experience');
+    if (experienceParam && !currentCampaign) {
+      // New campaign flow - show selection view
+      setSelectedExperienceType(experienceParam);
+      setSelectedExperience(experienceParam); // Sync this too
+      setIsCreating(true); // Go directly to selection view
+    }
+  }, [searchParams, currentCampaign]);
+
+  // FIX #14: Warn user about unsaved changes before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (currentCampaign?.isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentCampaign?.isDirty]);
+
+  // Template mode detection - Load template when navigating from Templates page
+
+  const loadTemplate = async (templateObj?: any) => {
+    try {
+      // Import API dynamically
+      const api = await import('@/lib/api');
+
+      let template = templateObj;
+      if (!template) {
+        // Fix: Determine which ID to use based on editor mode
+        // If mode is 'template', the 'id' param IS the template ID we want to edit.
+        // If mode is 'campaign' (default), we only look for 'templateId' param (e.g. applying template).
+        // We must NOT use 'id' in campaign mode as that refers to the campaign itself.
+        const mode = searchParams.get('mode');
+        const urlId = searchParams.get('id');
+        const urlTemplateId = searchParams.get('templateId');
+
+        const fetchTemplateId = (mode === 'template' ? urlId : null) || urlTemplateId;
+
+        if (!fetchTemplateId) return; // Nothing to load
+
+        template = await api.apiClient.getTemplate(fetchTemplateId);
+      }
+
+      if (!template) {
+        toast.error('Template not found');
+        navigate('/templates');
+        return;
+      }
+
+      console.log('DesignStep: Loaded template:', template);
+
+      // FIX: Use transformer to ensure consistent CampaignEditor format
+      const transformers = await import('@/lib/campaignTransformers');
+      const campaignData = transformers.backendToEditor(template);
+
+      // Explicitly set source if available and not present (transformers usually don't map sourceTemplateId from raw)
+      if (template._id && !campaignData.sourceTemplateId) {
+        campaignData.sourceTemplateId = template._id;
+      }
+
+      // Ensure nudgeType is set (transformer does this, but being safe)
+      if (!campaignData.nudgeType) {
+        campaignData.nudgeType = template.type || template.config?.type || 'bottomsheet';
+      }
+
+      // Override ID validation issue for templates - templates might use _id as id
+      if (!campaignData.id) {
+        campaignData.id = template._id || template.id || `temp_${Date.now()}`;
+      }
+
+      await loadCampaign(campaignData as any);
+      setEditorMode('template');
+      setShowEditor(true);
+      toast.success('Template loaded');
+    } catch (error) {
+      console.error('Failed to load template:', error);
+      toast.error('Failed to load template');
+      navigate('/templates');
+    }
+  };
+
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    const templateId = searchParams.get('id');
+
+    if (mode === 'template' && templateId && (editorMode !== 'template' || currentCampaign?.id !== templateId)) {
+      console.log('DesignStep: Detected template mode, loading template:', templateId);
+
+      loadTemplate();
+    }
+  }, [searchParams, editorMode, loadCampaign, setEditorMode, setShowEditor, navigate, currentCampaign]);
+
+  // Get layers from context: Active Story > Active Interface > Campaign root
+  const activeStoryForLayers = activeStoryId ? currentCampaign?.stories?.find(s => s.id === activeStoryId) : null;
+  const campaignLayers = activeStoryForLayers ? (activeStoryForLayers.layers || [])
+    : activeInterface ? (activeInterface.layers || [])
+      : (currentCampaign?.layers || []);
+  const campaignName = activeInterface ? activeInterface.name : (currentCampaign?.name || 'New Campaign');
+
+  // Debug logging for preview
+  console.log('CampaignBuilder: Current campaign:', currentCampaign?.id);
+  console.log('CampaignBuilder: Campaign layers count:', campaignLayers.length);
+  console.log('CampaignBuilder: Campaign layers:', campaignLayers);
+
+  // Get bottom sheet container ID (for adding new layers as children)
+  const bottomSheetContainer = campaignLayers.find(l => l.type === 'container' && l.name === 'Bottom Sheet');
+  const bottomSheetId = bottomSheetContainer?.id || null;
+
+
+
+
+  const isLayerSelected = (layerId: string) => selectedLayerId === layerId;
+
+  // Helper function to check if selected layer matches a type or name
+  const isSelectedLayerType = (typeOrName: string) => {
+    if (!selectedLayerObj) return false;
+    return selectedLayerObj.type === typeOrName ||
+      selectedLayerObj.name.toLowerCase().includes(typeOrName.toLowerCase());
+  };
+
+  // Layer hierarchy helpers (Fix 2)
+  const toggleLayerCollapse = (layerId: string) => {
+    setCollapsedLayers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(layerId)) {
+        newSet.delete(layerId);
+      } else {
+        newSet.add(layerId);
+      }
+      return newSet;
+    });
+  };
+
+  // Recursive Layer Tree Item Component (Fix 2)
+  const renderLayerTreeItem = (layer: any, depth: number = 0): JSX.Element => {
+    const hasChildren = layer.children && layer.children.length > 0;
+    const isCollapsed = collapsedLayers.has(layer.id);
+    const isSelected = currentCampaign?.selectedLayerId === layer.id;
+    const isDraggedOver = dragOverLayerId === layer.id;
+    const isDragging = draggedLayerId === layer.id; // Fix 3
+    const isEditing = editingLayerId === layer.id;
+    const indentPx = depth * 16; // Slightly reduced indentation (was 20)
+
+    // Check if layer can have children (for + button)
+    const canHaveChildren = ['container', 'carousel', 'bottomsheet', 'modal', 'banner', 'floater', 'pip', 'scratchcard', 'fullscreen', 'tooltip', 'grid_container', 'grid_item'].includes(layer.type) || layer.name.toLowerCase().includes('container') || layer.name.toLowerCase().includes('group');
+
+    return (
+      <div key={layer.id} style={{ position: 'relative' }}>
+        {/* Insertion line - BEFORE (Fix 3) */}
+        {isDraggedOver && dropPosition === 'before' && (
+          <div style={{
+            position: 'absolute',
+            top: '-2px',
+            left: `${12 + indentPx}px`,
+            right: '12px',
+            height: '2px',
+            backgroundColor: colors.primary[500],
+            borderRadius: '1px',
+            zIndex: 100,
+            boxShadow: '0 0 4px rgba(99, 102, 241, 0.5)'
+          }} />
+        )}
+
+        <div
+          draggable={!layer.locked && !isEditing}
+          onDragStart={(e) => handleDragStart(e, layer.id)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleDragOver(e, layer.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, layer.id)}
+          onClick={() => selectLayer(layer.id)}
+          onContextMenu={(e) => handleContextMenu(e, layer.id)}
+          className="group" // Tailwind group for hover effects
+          style={{
+            padding: '6px 8px 6px 4px', // Tighter padding
+            marginBottom: '2px',
+            borderRadius: '4px',
+            cursor: layer.locked ? 'not-allowed' : 'pointer',
+            backgroundColor: isSelected ? colors.primary[50] : 'transparent', // Lighter selection bg
+            border: `1px solid ${isDraggedOver && dropPosition === 'inside'
+              ? colors.primary[500]
+              : isSelected
+                ? colors.primary[200]
+                : 'transparent'
+              }`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            paddingLeft: `${8 + indentPx}px`,
+            opacity: isDragging ? 0.4 : (layer.visible ? 1 : 0.5),
+            transition: 'all 0.1s ease',
+            transform: isDragging ? 'scale(0.99)' : 'scale(1)',
+            position: 'relative',
+            zIndex: layerAddMenuId === layer.id || layerContextMenuId === layer.id ? 50 : 'auto'
+          }}
+        >
+          {/* Drag handle indicator - hidden by default, shown on hover */}
+          {!layer.locked && (
+            <div
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'grab',
+                padding: '2px'
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ width: '2px', height: '2px', backgroundColor: colors.gray[400], borderRadius: '50%' }} />
+                <div style={{ width: '2px', height: '2px', backgroundColor: colors.gray[400], borderRadius: '50%' }} />
+                <div style={{ width: '2px', height: '2px', backgroundColor: colors.gray[400], borderRadius: '50%' }} />
+              </div>
+            </div>
+          )}
+
+          {/* Expand/collapse chevron for containers */}
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLayerCollapse(layer.id);
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+            >
+              {isCollapsed ? (
+                <ChevronRight size={14} color={colors.gray[500]} />
+              ) : (
+                <ChevronDown size={14} color={colors.gray[500]} />
+              )}
+            </button>
+          ) : (
+            <div style={{ width: '18px' }} /> // Spacer
+          )}
+
+          {/* Layer Icon */}
+          <div style={{
+            color: isSelected ? colors.primary[600] : colors.gray[500]
+          }}>
+            {layer.type === 'container' ? <LayoutGrid size={15} /> :
+              layer.type === 'text' ? <Type size={15} /> :
+                layer.type === 'button' ? <Square size={15} /> :
+                  layer.type === 'image' || layer.type === 'media' ? <ImageIcon size={15} /> :
+                    layer.type === 'carousel' ? <GalleryHorizontal size={15} /> :
+                      layer.type === 'countdown' ? <Timer size={15} /> :
+                        layer.type === 'spinthewheel' ? <Gamepad2 size={15} /> :
+                          <Layers size={15} />
+            }
+          </div>
+
+          {/* Layer Name / Rename Input */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {isEditing ? (
+              <input
+                autoFocus
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onBlur={handleRenameSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameSubmit();
+                  if (e.key === 'Escape') {
+                    setEditingLayerId(null);
+                    setEditingName('');
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  padding: '2px 4px',
+                  fontSize: '13px',
+                  border: `1px solid ${colors.primary[500]}`,
+                  borderRadius: '2px',
+                  outline: 'none',
+                  background: 'white'
+                }}
+              />
+            ) : (
+              <span
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  handleRenameStart(layer);
+                }}
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: isSelected ? 500 : 400,
+                  color: isSelected ? colors.primary[700] : colors.text.primary,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  userSelect: 'none'
+                }}
+              >
+                {layer.name}
+              </span>
+            )}
+          </div>
+
+          {/* Action buttons - Hover only (unless active/locked) */}
+          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+
+            {/* Add Child Layer Button - Restricted */}
+            {canHaveChildren && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (layerAddMenuId === layer.id) {
+                    setLayerAddMenuId(null);
+                    setLayerAddMenuPosition(null);
+                  } else {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const openUpward = spaceBelow < 320; // Estimate add menu height at 320px
+                    setLayerAddMenuId(layer.id);
+                    setLayerAddMenuPosition({
+                      top: openUpward ? rect.top - 4 : rect.bottom + 4,
+                      left: rect.left - 100, // Shift left
+                      openUpward
+                    });
+                  }
+                }}
+                className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-indigo-600 transition-colors"
+                title="Add child layer"
+              >
+                <Plus size={13} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLayerVisibility(layer.id);
+              }}
+              style={{ opacity: !layer.visible ? 1 : undefined }} // Keep visible if hidden
+              className={`p-1 rounded hover:bg-gray-200 transition-colors ${!layer.visible ? 'text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
+              title={layer.visible ? 'Hide layer' : 'Show layer'}
+            >
+              {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLayerLock(layer.id);
+              }}
+              style={{ opacity: layer.locked ? 1 : undefined }} // Keep visible if locked
+              className={`p-1 rounded hover:bg-gray-200 transition-colors ${layer.locked ? 'text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
+              title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+            >
+              {layer.locked ? <Lock size={13} /> : <Unlock size={13} />}
+            </button>
+
+            {/* Menu Button - Triggers Context Menu */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleContextMenu(e, layer.id);
+              }}
+              className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+              title="More options"
+            >
+              <Menu size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Insertion line - AFTER (Fix 3) */}
+        {isDraggedOver && dropPosition === 'after' && (
+          <div style={{
+            position: 'absolute',
+            bottom: '0px',
+            left: `${12 + indentPx}px`,
+            right: '12px',
+            height: '2px',
+            backgroundColor: colors.primary[500],
+            borderRadius: '1px',
+            zIndex: 100,
+            boxShadow: '0 0 4px rgba(99, 102, 241, 0.5)'
+          }} />
+        )}
+
+        {/* Recursively render children if not collapsed */}
+        {hasChildren && !isCollapsed && (
+          <div>
+            {layer.children.map((childId: string) => {
+              const childLayer = displayLayers.find((l: any) => l.id === childId);
+              if (!childLayer) return null;
+              return renderLayerTreeItem(childLayer, depth + 1);
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to find a layer by name/type
+  const findLayerByName = (name: string) => {
+    return campaignLayers.find(layer => layer.name.toLowerCase().includes(name.toLowerCase()) || layer.type === name);
+  };
+
+
+
+
+  // ... (previous imports)
+
+  // Inside CampaignBuilder component...
+
+  // Render interface preview (when a button with interface action is clicked in preview mode)
+  const renderInterfacePreview = (iface: any) => {
+    const interfaceLayers = iface.layers || [];
+    const currentDeviceConfig = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+    const deviceWidth = currentDeviceConfig?.width || 393;
+    const deviceHeight = currentDeviceConfig?.height || 852;
+    const scaleFactor = (deviceWidth / 393) * previewZoom;
+    const scaleYFactor = (deviceHeight / 852) * previewZoom;
+
+    // Wrapper with close button and backdrop
+    // Wrapper with close button and backdrop
+    const interfaceWrapper = (renderer: React.ReactNode) => {
+      // Helper to convert hex/config to rgba
+      const getOverlayStyle = () => {
+
+        let overlayConfig = {};
+        switch (iface.nudgeType) {
+          case 'modal':
+            return 'transparent'
+          case 'bottomsheet':
+            return 'transparent'
+          case 'banner':
+            return 'transparent'
+          case 'tooltip':
+            // Fix: Tooltip handles its own overlay via TooltipRenderer.renderOverlay()
+            // Don't add a wrapper overlay here to avoid double-dimming
+            return 'transparent';
+          case 'scratchcard':
+            return 'transparent'
+          case 'floater':
+            return 'transparent'
+          case 'pip':
+            return 'transparent'
+          default:
+            return 'transparent'
+        }
+
+        const config = overlayConfig || {};
+        const color = config.color || '#000000';
+        const opacity = config.opacity !== undefined ? config.opacity : 0.4;
+
+        if (color.startsWith('#')) {
+          const hex = color.replace('#', '');
+          const r = parseInt(hex.substring(0, 2), 16);
+          const g = parseInt(hex.substring(2, 4), 16);
+          const b = parseInt(hex.substring(4, 6), 16);
+          return `rgba(${r},${g},${b},${opacity})`;
+        }
+        return color;
+      };
+
+      return (
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            backgroundColor: getOverlayStyle(),
+          }}
+          onClick={(e) => {
+            // Tap background to close
+            if (e.target === e.currentTarget) closePreviewInterface();
+          }}
+        >
+          {renderer}
+        </div>
+      );
+    };
+
+    switch (iface.nudgeType) {
+      case 'bottomsheet':
+        return interfaceWrapper(
+          <BottomSheetRenderer
+            layers={interfaceLayers}
+            selectedLayerId={null}
+            onLayerSelect={() => { }}
+            onLayerUpdate={() => { }}
+            colors={colors}
+            config={iface.bottomSheetConfig || {}}
+            onDismiss={closePreviewInterface}
+            isInteractive={true}
+            onNavigate={() => { }}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+            scale={scaleFactor}
+            scaleY={scaleYFactor}
+          />
+        );
+      case 'tooltip':
+        // Fix: Resolve target element for interactive preview
+        const targetElementId = iface.tooltipConfig?.targetElementId;
+        const realTargetElement = selectedPage?.elements?.find((e: any) => e.id === targetElementId);
+
+        // Normalize coordinates
+        let targetElement = undefined;
+        if (realTargetElement?.rect) {
+          const deviceMeta = selectedPage?.deviceMetadata || { width: 1080, height: 1920 };
+          const density = deviceMeta.density || 1;
+          const normalizeX = 393 / (deviceMeta.width * density);
+          const normalizeY = 852 / (deviceMeta.height * density);
+
+          targetElement = {
+            rect: {
+              x: realTargetElement.rect.x * normalizeX,
+              y: realTargetElement.rect.y * normalizeY,
+              width: realTargetElement.rect.width * normalizeX,
+              height: realTargetElement.rect.height * normalizeY,
+            }
+          };
+        }
+
+        return interfaceWrapper(
+          <TooltipRenderer
+            layers={interfaceLayers}
+            selectedLayerId={null}
+            onLayerSelect={() => { }}
+            colors={colors}
+            config={iface.tooltipConfig || {}}
+            onConfigChange={() => { }}
+            targetElement={targetElement}
+            scale={scaleFactor}
+            scaleY={scaleYFactor}
+            isInteractive={true}
+            onDismiss={closePreviewInterface}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+          />
+        );
+      case 'floater':
+        return interfaceWrapper(
+          <FloaterRenderer
+            layers={interfaceLayers}
+            selectedLayerId={null}
+            onLayerSelect={() => { }}
+            colors={colors}
+            config={iface.floaterConfig || {}}
+            onConfigChange={() => { }}
+            onLayerUpdate={() => { }}
+            isInteractive={true}
+            onDismiss={closePreviewInterface}
+            onNavigate={() => { }}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+            scale={scaleFactor}
+            scaleY={scaleYFactor}
+          />
+        );
+      case 'fullscreen':
+      case 'fullpage':
+        return interfaceWrapper(
+          <FullScreenRenderer
+            layers={interfaceLayers}
+            selectedLayerId={null}
+            onLayerSelect={() => { }}
+            colors={colors}
+            config={iface.fullscreenConfig || {}}
+            onLayerUpdate={() => { }}
+            isInteractive={true}
+            onDismiss={closePreviewInterface}
+            onNavigate={() => { }}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+            scale={scaleFactor}
+            scaleY={scaleYFactor}
+          />
+        );
+      default:
+        return (
+          <div style={{ padding: '20px', textAlign: 'center', color: colors.text.secondary }}>
+            Preview not available for {iface.nudgeType}
+            <button onClick={closePreviewInterface} style={{ marginTop: '10px', padding: '8px 16px' }}>
+              Close
+            </button>
+          </div>
+        );
+    }
+  };
+
+  // Render canvas preview based on nudge type
+  const renderCanvasPreview = () => {
+    // Context switching: Use interface's nudgeType when editing an interface
+    const nudgeTypeToRender = activeInterface
+      ? displayNudgeType
+      : (selectedNudgeType || currentCampaign?.nudgeType);
+
+    // Use displayLayers for context switching (interface or main campaign)
+    const campaignLayers = displayLayers;
+
+    if (isPreviewDismissed) {
+      return (
+        <div style={{
+          position: 'absolute', inset: 0,
+          pointerEvents: 'none', // Allow clicks to pass through to the 'app' (PhonePreview background)
+        }}>
+          {/** Minimal Restart Button */}
+          <button
+            onClick={() => setIsPreviewDismissed(false)}
+            style={{
+              position: 'absolute',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '8px 16px',
+              backgroundColor: 'white',
+              border: `1px solid ${colors.gray[200]}`,
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 500,
+              color: colors.text.secondary,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              cursor: 'pointer',
+              pointerEvents: 'auto', // Re-enable pointer events for the button
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              zIndex: 100
+            }}
+          >
+            <RefreshCw size={12} />
+            Restart Preview
+          </button>
+        </div>
+      );
+    }
+
+    if (!nudgeTypeToRender) {
+      return (
+        <div style={{ padding: '60px 20px 20px', textAlign: 'center', color: colors.text.secondary, fontSize: '13px' }}>
+          Select an experience type to preview
+        </div>
+      );
+    }
+
+    // If an interface is being previewed (from button click in interactive mode),
+    // render the interface preview on top
+    if (previewInterfaceId && (isInteractive || isPreview)) {
+      const previewedInterface = currentCampaign?.interfaces?.find((i: any) => i.id === previewInterfaceId);
+      if (previewedInterface) {
+        return renderInterfacePreview(previewedInterface);
+      }
+    }
+
+    switch (nudgeTypeToRender) {
+
+
+
+      case 'bottomsheet':
+        const currentDeviceConfig = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const deviceWidth = currentDeviceConfig?.width || 393;
+        // CRITICAL FIX: Multiply by previewZoom because PhonePreview resizes the CONTAINER pixels directly.
+        // Fixed pixels (safeScale) must shrink to match the shrunk container.
+        // UPDATE: Use 393 as design width baseline to match SDK parity
+        const scaleFactor = (deviceWidth / 393) * previewZoom;
+        const deviceHeight = currentDeviceConfig?.height || 852; // Default to 14 Pro height
+        // UPDATE: Use 852 as design height baseline to match SDK parity
+        const scaleYFactor = (deviceHeight / 852) * previewZoom;
+
+        return (
+          <BottomSheetRenderer
+            layers={campaignLayers}
+            selectedLayerId={selectedLayerId}
+            onLayerSelect={selectLayer}
+            onLayerUpdate={updateLayer}
+            colors={colors}
+            config={activeInterface?.bottomSheetConfig || currentCampaign?.bottomSheetConfig}
+            onDismiss={() => {
+              if (isInteractive) {
+                toast.success('Dismiss action triggered');
+                setIsPreviewDismissed(true);
+              } else {
+                toast.success('Dismiss action triggered');
+              }
+            }}
+            isInteractive={isInteractive}
+            onNavigate={handlePreviewNavigate}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+
+
+            scale={scaleFactor}
+            scaleY={scaleYFactor} // Fix 16: Hybrid Scaling
+          />
+        );
+      case 'modal':
+        const defaultModalConfig = {
+          mode: 'container' as const,
+          width: '90%',
+          height: 'auto',
+          backgroundColor: '#FFFFFF',
+          elevation: 2 as const,
+          overlay: { enabled: true, opacity: 0.5, blur: 0, color: '#000000', dismissOnClick: true },
+          animation: { type: 'pop' as const, duration: 300, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' }
+        };
+
+
+
+        const currentDeviceConfigModal = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const deviceWidthModal = currentDeviceConfigModal?.width || 375;
+        // FIX: Change baseline to 393 (iPhone 14 Pro) so smaller devices (SE) scale DOWN ( < 1 ) instead of clipping fixed content.
+        // FIX2 (ZOOM SEPARATION): Pure device ratio WITHOUT zoom for content scaling. Zoom handled by PhonePreview wrapper.
+        const pureDeviceScaleX = deviceWidthModal / 393;
+        const pureDeviceScaleY = (currentDeviceConfigModal?.height || 852) / 852;
+        // For now, keep using zoom-affected scale for backwards compatibility. TODO: Refactor PhonePreview to handle zoom separately.
+        const scaleFactorModal = pureDeviceScaleX * previewZoom;
+        const deviceHeightModal = currentDeviceConfigModal?.height || 852;
+        const scaleYFactorModal = pureDeviceScaleY * previewZoom;
+
+        console.log('DesignStep modalConfig:', currentCampaign?.modalConfig);
+
+        return (
+          <ErrorBoundary>
+            <FloaterRenderer
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={activeInterface?.modalConfig || currentCampaign?.modalConfig || defaultModalConfig}
+              onConfigChange={(config) => updateModalConfig(config)}
+              onLayerUpdate={updateLayer}
+              onDismiss={() => {
+                if (isInteractive) {
+                  toast.success('Dismiss action triggered');
+                  setIsPreviewDismissed(true);
+                } else {
+                  toast.success('Dismiss action triggered');
+                }
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+              scale={scaleFactorModal}
+              scaleY={scaleYFactorModal}
+            />
+          </ErrorBoundary>
+        );
+
+      case 'banner':
+        const currentDeviceConfigBanner = DEVICE_PRESETS.find(d => d.id === selectedDevice) || DEVICE_PRESETS[0];
+        const pureDeviceScaleXBanner = (currentDeviceConfigBanner?.width || 393) / 393;
+        const pureDeviceScaleYBanner = (currentDeviceConfigBanner?.height || 852) / 852;
+        const scaleFactorBanner = pureDeviceScaleXBanner * previewZoom;
+        const scaleYFactorBanner = pureDeviceScaleYBanner * previewZoom;
+        return (
+          <ErrorBoundary>
+            <FloaterRenderer
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={activeInterface?.bannerConfig || currentCampaign?.bannerConfig}
+              onConfigChange={(newConfig) => updateBannerConfig(newConfig)}
+              onLayerUpdate={updateLayer}
+              onDismiss={() => {
+                if (isInteractive) {
+                  toast.success('Dismiss action triggered');
+                  setIsPreviewDismissed(true);
+                } else {
+                  toast.success('Dismiss action triggered');
+                }
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+              scale={scaleFactorBanner}
+              scaleY={scaleYFactorBanner}
+            />
+          </ErrorBoundary>
+        );
+
+      case 'floater':
+        const defaultFloaterConfig = {
+          mode: 'image' as const,
+          position: 'bottom-right' as const,
+          offsetX: 20,
+          offsetY: 20,
+          width: 320,
+          height: 180,
+          borderRadius: 16,
+          backgroundColor: '#10B981',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          showCloseButton: true,
+        };
+
+        const currentDeviceConfigFloater = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const pureDeviceScaleXFloater = (currentDeviceConfigFloater?.width || 393) / 393;
+        const pureDeviceScaleYFloater = (currentDeviceConfigFloater?.height || 852) / 852;
+        const scaleFactorFloater = pureDeviceScaleXFloater * previewZoom;
+        const scaleYFactorFloater = pureDeviceScaleYFloater * previewZoom;
+
+        return (
+          <ErrorBoundary>
+            <FloaterRenderer
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={activeInterface?.floaterConfig || currentCampaign?.floaterConfig || defaultFloaterConfig}
+              onLayerUpdate={updateLayer}
+              onDismiss={() => {
+                if (isInteractive) {
+                  toast.success('Dismiss action triggered');
+                  setIsPreviewDismissed(true);
+                } else {
+                  toast.success('Dismiss action triggered');
+                }
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+              scale={scaleFactorFloater}
+              scaleY={scaleYFactorFloater}
+            />
+          </ErrorBoundary>
+        );
+
+      case 'fullpage':
+      case 'fullscreen': {
+        const currentDeviceConfigFs = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        // Scaling logic same as Modal (Design Baseline 393x852)
+        const pureDeviceScaleXFs = (currentDeviceConfigFs?.width || 393) / 393;
+        const pureDeviceScaleYFs = (currentDeviceConfigFs?.height || 852) / 852;
+        const scaleFactorFs = pureDeviceScaleXFs * previewZoom;
+        const scaleYFactorFs = pureDeviceScaleYFs * previewZoom;
+
+        // Stories mode: Use SlideContainerRenderer
+        if (activeStoryId) {
+          return (
+            <ErrorBoundary>
+              <StoryCubeTransition activeStoryId={activeStoryId}>
+                <SlideContainerRenderer
+                  layers={campaignLayers}
+                  selectedLayerId={selectedLayerId}
+                  onLayerSelect={selectLayer}
+                  colors={colors}
+                  config={currentCampaign?.fullscreenConfig}
+                  onLayerUpdate={updateLayer}
+                  scale={scaleFactorFs}
+                  scaleY={scaleYFactorFs}
+                  isInteractive={isInteractive}
+                  onDismiss={() => {
+                    if (isInteractive) {
+                      toast.success('Dismiss action triggered');
+                      setIsPreviewDismissed(true);
+                    }
+                  }}
+                  onNavigate={handlePreviewNavigate}
+                  onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+                />
+              </StoryCubeTransition>
+            </ErrorBoundary>
+          );
+        }
+
+        return (
+          <ErrorBoundary>
+            <FullScreenRenderer
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={activeInterface?.fullscreenConfig || currentCampaign?.fullscreenConfig}
+              onLayerUpdate={updateLayer}
+              onDismiss={() => {
+                if (isInteractive) {
+                  toast.success('Dismiss action triggered');
+                  setIsPreviewDismissed(true);
+                } else {
+                  toast.success('Dismiss action triggered');
+                }
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+              scale={scaleFactorFs}
+              scaleY={scaleYFactorFs}
+            />
+          </ErrorBoundary>
+        );
+      }
+
+      case 'spinthewheel': {
+        const currentDeviceConfigStw = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const scaleFactorStw = ((currentDeviceConfigStw?.width || 393) / 393) * previewZoom;
+        const scaleYFactorStw = ((currentDeviceConfigStw?.height || 852) / 852) * previewZoom;
+
+        return (
+          <ErrorBoundary>
+            <FullScreenRenderer
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={currentCampaign?.fullscreenConfig}
+              onLayerUpdate={updateLayer}
+              onDismiss={() => {
+                if (isInteractive) {
+                  toast.success('Dismiss action triggered');
+                  setIsPreviewDismissed(true);
+                }
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+              scale={scaleFactorStw}
+              scaleY={scaleYFactorStw}
+            />
+          </ErrorBoundary>
+        );
+      }
+
+      case 'tooltip':
+        const device = DEVICE_PRESETS.find(d => d.id === selectedDevice) || DEVICE_PRESETS[0];
+        const deviceMeta = selectedPage?.deviceMetadata || { width: 1080, height: 1920 };
+
+        const previewWidth = device.width * previewZoom;
+        const previewHeight = device.height * previewZoom;
+
+        // FIX: Use 393x852 design baseline (like Modal) instead of deviceMeta × density
+        // This ensures tooltip preview matches SDK rendering proportionally
+        const scaleX = previewWidth / 393;  // Design width baseline
+        const scaleY = previewHeight / 852;  // Design height baseline
+
+        // FIX: Create default tooltip config
+        const defaultTooltipConfig = {
+          position: 'bottom' as const,
+          backgroundColor: '#1F2937',
+          borderRadius: 12,
+          padding: 16,
+          arrowEnabled: true,
+          arrowSize: 10,
+          overlayEnabled: true,
+          overlayColor: 'rgba(0,0,0,0.5)',
+          overlayOpacity: 0.5,
+        };
+
+        // FIX #3: Mock target element for preview (in design coordinates 393x852)
+        const mockTargetElement = {
+          rect: { x: 393 / 2 - 60, y: 852 / 3, width: 120, height: 40 }
+        };
+
+        // Try to find real target element, fallback to mock
+        const activeConfig = activeInterface ? activeInterface.tooltipConfig : currentCampaign?.tooltipConfig;
+        const targetElementId = activeConfig?.targetElementId || currentCampaign?.tooltipConfig?.targetElementId;
+        const realTargetElement = selectedPage?.elements?.find((e: any) => e.id === targetElementId);
+
+        // FIX: Convert target rect from physical pixels to design coordinates
+        // Physical coords are in deviceMeta dimensions, convert to 393x852 design space
+        const density = deviceMeta.density || 1;
+        const normalizeX = 393 / (deviceMeta.width * density);  // Factor to convert physical X to design X
+        const normalizeY = 852 / (deviceMeta.height * density);  // Factor to convert physical Y to design Y
+
+        let targetElement: { rect: { x: number; y: number; width: number; height: number } } | undefined;
+        if (isPreviewDismissed) {
+          return (
+            <div style={{
+              width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', color: colors.text.secondary
+            }}>
+              <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255,255,255,0.8)', borderRadius: '50%' }}>
+                <CheckCircle2 size={24} color={colors.green[500]} />
+              </div>
+              <p style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 500 }}>Interface Dismissed</p>
+              <button
+                onClick={() => setIsPreviewDismissed(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'white',
+                  border: `1px solid ${colors.gray[300]}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+              >
+                Restart Preview
+              </button>
+            </div>
+          );
+        }
+
+        if (realTargetElement?.rect) {
+          // Normalize physical coords to design coords
+          targetElement = {
+            rect: {
+              x: realTargetElement.rect.x * normalizeX,
+              y: realTargetElement.rect.y * normalizeY,
+              width: realTargetElement.rect.width * normalizeX,
+              height: realTargetElement.rect.height * normalizeY,
+            }
+          };
+        } else {
+          targetElement = undefined; // Let renderer show mock target
+        }
+
+        return (
+          <TooltipRenderer
+            layers={campaignLayers}
+            selectedLayerId={selectedLayerId}
+            onLayerSelect={selectLayer}
+            colors={colors}
+            config={activeInterface?.tooltipConfig || currentCampaign?.tooltipConfig || defaultTooltipConfig}
+            onConfigChange={(config) => updateTooltipConfig(config)}
+            targetElement={targetElement}
+            scale={scaleX}
+            scaleY={scaleY}
+            onLayerUpdate={updateLayer} // FIX: enable dragging in canvas preview
+            isInteractive={isInteractive}
+            onDismiss={() => {
+              if (isInteractive) {
+                toast.success('Dismiss action triggered');
+                setIsPreviewDismissed(true);
+              } else {
+                toast.info('Enable "Interact" mode to test dismiss');
+              }
+            }}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+          />
+        );
+
+
+      case 'pip':
+        const currentDeviceConfigPip = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const pureDeviceScaleXPip = (currentDeviceConfigPip?.width || 393) / 393;
+        const pureDeviceScaleYPip = (currentDeviceConfigPip?.height || 852) / 852;
+        const scaleFactorPip = pureDeviceScaleXPip * previewZoom;
+        const scaleYFactorPip = pureDeviceScaleYPip * previewZoom;
+
+        return (
+          <FloaterRenderer
+            layers={campaignLayers}
+            selectedLayerId={selectedLayerId}
+            onLayerSelect={selectLayer}
+            colors={colors}
+            config={activeInterface?.pipConfig || currentCampaign?.pipConfig}
+            onConfigChange={(config) => updatePipConfig(config)}
+            isInteractive={isInteractive}
+            onDismiss={() => {
+              if (isInteractive) {
+                toast.success('Dismiss action triggered');
+                setIsPreviewDismissed(true);
+              } else {
+                toast.success('Dismiss action triggerd (Preview)');
+              }
+            }}
+            onNavigate={handleNavigate}
+            onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+            scale={scaleFactorPip}
+            scaleY={scaleYFactorPip}
+          />
+        );
+
+      case 'scratchcard':
+        const currentDeviceConfigScratch = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+        const deviceWidthScratch = currentDeviceConfigScratch?.width || 375;
+        const pureDeviceScaleXScratch = deviceWidthScratch / 393;
+        const pureDeviceScaleYScratch = (currentDeviceConfigScratch?.height || 852) / 852;
+        const scaleFactorScratch = pureDeviceScaleXScratch * previewZoom;
+        const scaleYFactorScratch = pureDeviceScaleYScratch * previewZoom;
+
+        return (
+          <ErrorBoundary>
+            <FloaterRenderer
+              key={previewRefreshKey}
+              layers={campaignLayers}
+              selectedLayerId={selectedLayerId}
+              onLayerSelect={selectLayer}
+              colors={colors}
+              config={{
+                ...(activeInterface?.scratchCardConfig || currentCampaign?.scratchCardConfig),
+                previewRevealed: isPreview ? false : ((activeInterface?.scratchCardConfig || currentCampaign?.scratchCardConfig)?.previewRevealed || false)
+              }}
+              onConfigChange={(config) => updateScratchCardConfig(config)}
+              scale={scaleFactorScratch}
+              scaleY={scaleYFactorScratch}
+              onLayerUpdate={updateLayer} // Propagate updateLayer for drag/drop
+              onDismiss={() => {
+                if (isInteractive) {
+                  setIsInteractive(false);
+                  setIsPreviewDismissed(true);
+                }
+                else toast.success('Dismiss action triggered');
+              }}
+              isInteractive={isInteractive}
+              onNavigate={handlePreviewNavigate}
+              onInterfaceAction={handleInterfaceAction} onAction={handleInterfaceAction}
+            />
+          </ErrorBoundary>
+        );
+
+      case 'carousel':
+        return (
+          <div style={{ position: 'absolute', inset: 0, backgroundColor: 'black' }}>
+            {/* Progress Bars */}
+            <div style={{ display: 'flex', gap: '4px', padding: '12px 16px', opacity: isSelectedLayerType('container') ? 1 : 0.7 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ flex: 1, height: '3px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px', overflow: 'hidden' }}>
+                  {i === 0 && <div style={{ width: '60%', height: '100%', backgroundColor: 'white' }}></div>}
+                </div>
+              ))}
+            </div>
+
+            {/* Story Content */}
+            <div style={{ position: 'relative', height: 'calc(100% - 50px)', opacity: isSelectedLayerType('media') ? 1 : 0.9 }}>
+              <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=600&fit=crop" alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+              {/* Gradient Overlay */}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', padding: '40px 20px 20px' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700, color: 'white', opacity: isSelectedLayerType('text') ? 1 : 0.9 }}>
+                  Summer Sale is Live! ☀️
+                </h3>
+                <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>
+                  Up to 70% off on all items
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: isSelectedLayerType('close') ? 1 : 0.7 }}>
+                <X size={18} color="white" />
+              </button>
+
+              {/* Navigation Controls */}
+              <div style={{ position: 'absolute', top: '50%', left: '12px', transform: 'translateY(-50%)', opacity: isSelectedLayerType('controls') ? 1 : 0.5 }}>
+                <button style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <ChevronRight size={20} color="white" style={{ transform: 'rotate(180deg)' }} />
+                </button>
+              </div>
+              <div style={{ position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)', opacity: isSelectedLayerType('controls') ? 1 : 0.5 }}>
+                <button style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <ChevronRight size={20} color="white" />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'inline':
+        return (
+          <div style={{ padding: '20px', height: '100%', overflowY: 'auto' }}>
+            {/* Inline Widget */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: '16px', border: isSelectedLayerType('container') ? `2px solid ${colors.primary[500]}` : `1px solid ${colors.gray[200]}` }}>
+              {/* Media */}
+              <div style={{ width: '100%', height: '160px', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px', border: isSelectedLayerType('media') ? `2px solid ${colors.primary[500]}` : 'none' }}>
+                <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=250&fit=crop" alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+
+              {/* Content */}
+              <div style={{ marginBottom: '16px', opacity: isSelectedLayerType('text') ? 1 : 0.9 }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '17px', fontWeight: 700, color: colors.text.primary }}>
+                  Exclusive Members Deal 🌟
+                </h3>
+                <p style={{ margin: 0, fontSize: '14px', color: colors.text.secondary, lineHeight: 1.5 }}>
+                  Get early access to our new collection. Limited spots available!
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button style={{ flex: 1, padding: '12px', backgroundColor: colors.primary[500], color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', opacity: isSelectedLayerType('button') ? 1 : 0.9 }}>
+                  Join Now
+                </button>
+                <button style={{ padding: '12px 20px', backgroundColor: 'transparent', color: colors.text.primary, border: `1px solid ${colors.gray[200]}`, borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', opacity: isSelectedLayerType('button') ? 1 : 0.9 }}>
+                  Learn More
+                </button>
+              </div>
+            </div>
+
+            {/* Dummy content to show inline context */}
+            <div style={{ fontSize: '13px', color: colors.text.secondary, lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 12px 0' }}>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+              <p style={{ margin: 0 }}>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>
+            </div>
+          </div>
+        );
+
+
+
+      default:
+        return (
+          <div style={{ padding: '60px 20px 20px', textAlign: 'center', color: colors.text.secondary, fontSize: '13px' }}>
+            Preview for {selectedNudgeType}
+          </div>
+        );
+    }
+  };
+
+  // Render layer actions (Refactored from renderLayerProperties)
+  const renderLayerActions = () => {
+    if (!selectedLayerObj) return null;
+
+    return (
+      <div style={{ marginBottom: '20px' }}>
+        <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary }}>⚡ Interaction</h5>
+
+        <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '8px' }}>On Click Action</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          {[
+            { value: 'none', label: 'No Action', icon: <CircleOff size={16} /> },
+            { value: 'close', label: 'Dismiss', icon: <X size={16} /> },
+            { value: 'deeplink', label: 'Deep Link', icon: <Link size={16} /> },
+            { value: 'link', label: 'External URL', icon: <Globe size={16} /> },
+            { value: 'custom', label: 'Callback', icon: <Code size={16} /> },
+            { value: 'interface', label: 'Interface', icon: <Layers size={16} /> },
+            ...(currentCampaign?.nudgeType === 'spinthewheel' ? [{ value: 'spin_wheel', label: 'Spin Wheel', icon: <RotateCw size={16} /> }] : [])
+          ].map((option) => {
+            const isSelected = (selectedLayerObj.content?.action?.type || 'none') === option.value;
+            return (
+              <button
+                key={option.value}
+                onClick={() => {
+                  if (option.value === 'none') {
+                    handleContentUpdate('action', undefined);
+                  } else {
+                    handleContentUpdate('action', {
+                      type: option.value,
+                      ...(selectedLayerObj.content?.action || {})
+                    });
+                    // Ensure type is updated
+                    handleContentUpdate('action', { ...selectedLayerObj.content?.action, type: option.value });
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '10px',
+                  border: `1px solid ${isSelected ? colors.primary[500] : colors.gray[200]}`,
+                  borderRadius: '8px',
+                  backgroundColor: isSelected ? colors.primary[50] : 'white',
+                  color: isSelected ? colors.primary[600] : colors.text.secondary,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: '12px',
+                  fontWeight: 500
+                }}
+              >
+                {option.icon}
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedLayerObj.content?.action?.type === 'deeplink' && (
+          <div style={{ marginBottom: '12px', animation: 'fadeIn 0.2s ease-in-out' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '4px' }}>App Deeplink</label>
+            <div style={{ position: 'relative' }}>
+              <Link size={14} color={colors.text.secondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={selectedLayerObj.content?.action?.url || ''}
+                onChange={(e) => handleContentUpdate('action', { ...selectedLayerObj.content?.action, url: e.target.value })}
+                placeholder="myapp://screen/page"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  border: `1px solid ${colors.gray[200]}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = colors.primary[500]}
+                onBlur={(e) => e.target.style.borderColor = colors.gray[200]}
+              />
+            </div>
+            <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '4px' }}>
+              Enter an app-scheme link (e.g., myapp://product/123) to navigate within the app.
+            </div>
+          </div>
+        )}
+
+        {selectedLayerObj.content?.action?.type === 'link' && (
+          <div style={{ marginBottom: '12px', animation: 'fadeIn 0.2s ease-in-out' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '4px' }}>External Web URL</label>
+            <div style={{ position: 'relative' }}>
+              <Globe size={14} color={colors.text.secondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={selectedLayerObj.content?.action?.url || ''}
+                onChange={(e) => handleContentUpdate('action', { ...selectedLayerObj.content?.action, url: e.target.value })}
+                placeholder="https://example.com"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  border: `1px solid ${colors.gray[200]}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = colors.primary[500]}
+                onBlur={(e) => e.target.style.borderColor = colors.gray[200]}
+              />
+            </div>
+            <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '4px' }}>
+              Enter a valid https:// URL to open in the browser.
+            </div>
+          </div>
+        )}
+
+        {selectedLayerObj.content?.action?.type === 'custom' && (
+          <div style={{ marginBottom: '12px', animation: 'fadeIn 0.2s ease-in-out' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '4px' }}>Callback ID</label>
+            <div style={{ position: 'relative' }}>
+              <Code size={14} color={colors.text.secondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                list="saved-callback-ids"
+                value={selectedLayerObj.content?.action?.eventName || ''}
+                onChange={(e) => handleContentUpdate('action', { ...selectedLayerObj.content?.action, eventName: e.target.value })}
+                onBlur={(e) => {
+                  e.target.style.borderColor = colors.gray[200];
+                  if (e.target.value && e.target.value.trim().length > 0) {
+                    addCustomCallbackId(e.target.value.trim());
+                  }
+                }}
+                placeholder="e.g. track_signup_click"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  border: `1px solid ${colors.gray[200]}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  fontFamily: 'monospace'
+                }}
+                onFocus={(e) => e.target.style.borderColor = colors.primary[500]}
+              />
+              <datalist id="saved-callback-ids">
+                {customCallbackIds?.map((id, index) => (
+                  <option key={`${id}-${index}`} value={id} />
+                ))}
+              </datalist>
+            </div>
+            <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '4px' }}>
+              The event will start running.
+            </div>
+          </div>
+        )}
+
+        {selectedLayerObj.content?.action?.type === 'interface' && (
+          <div style={{ marginBottom: '12px', animation: 'fadeIn 0.2s ease-in-out' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '4px' }}>Target Interface</label>
+            <div style={{ position: 'relative' }}>
+              <Layers size={14} color={colors.text.secondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <select
+                value={selectedLayerObj.content?.action?.interfaceId || ''}
+                onChange={(e) => handleContentUpdate('action', { ...selectedLayerObj.content?.action, interfaceId: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px 8px 32px',
+                  border: `1px solid ${colors.gray[200]}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: 'white'
+                }}
+                onFocus={(e) => e.target.style.borderColor = colors.primary[500]}
+                onBlur={(e) => e.target.style.borderColor = colors.gray[200]}
+              >
+                <option value="" disabled>Select an interface...</option>
+                <option value="root">Main Campaign (Root)</option>
+                {(currentCampaign?.interfaces || []).map((iface) => (
+                  <option key={iface.id} value={iface.id}>
+                    {iface.name} ({iface.nudgeType})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(!currentCampaign?.interfaces || currentCampaign.interfaces.length === 0) && (
+              <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '6px', padding: '8px', backgroundColor: colors.gray[50], borderRadius: '6px' }}>
+                No interfaces created yet. Use the "Add" button in the Interfaces section to create one.
+              </div>
+            )}
+            <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '4px' }}>
+              Shows the selected interface when this button is clicked.
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // PIP Configuration
+  const renderPipConfig = () => {
+    if (selectedNudgeType !== 'pip') return null;
+
+    // Resolve config from active interface OR main campaign
+    const config = activeInterface ? (activeInterface.pipConfig || {}) : (currentCampaign?.pipConfig || {});
+
+    const handleConfigUpdate = (field: string, value: any) => {
+      updatePipConfig({ [field]: value });
+    };
+
+    // Show PIP config when:
+    // 1. PIP container is selected
+    // 2. No layer is selected
+    const isPipContainerSelected = selectedLayerObj?.type === 'container' && selectedLayerObj?.name === 'PIP Container';
+    const shouldShowFullConfig = !selectedLayerObj || isPipContainerSelected;
+
+    if (!shouldShowFullConfig) return null;
+
+    return (
+      <>
+        <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            📺 PIP Settings
+          </h5>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', color: colors.text.secondary }}>Show Close Button</span>
+            <div
+              onClick={() => handleConfigUpdate('showCloseButton', config.showCloseButton !== false ? false : true)}
+              style={{
+                width: '44px', height: '24px', borderRadius: '12px',
+                background: config.showCloseButton !== false ? colors.primary[500] : colors.gray[300],
+                position: 'relative', cursor: 'pointer', transition: 'background 0.2s'
+              }}
+            >
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: config.showCloseButton !== false ? '22px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
+
+
+
+  // Render properties based on layer type
+  const renderLayerProperties = () => {
+    console.log('renderLayerProperties ENTRY', {
+      selectedLayerObj,
+      selectedNudgeType,
+      layerType: selectedLayerObj?.type,
+      layerName: selectedLayerObj?.name
+    });
+
+    if (!selectedLayerObj) {
+      // Show global config for specific nudge types when no layer is selected
+      if (selectedNudgeType === 'tooltip') return <TooltipMinimalEditor />;
+      if (selectedNudgeType === 'pip') return renderPipConfig();
+      if (selectedNudgeType === 'bottomsheet') return <BottomSheetMinimalEditor />;
+      // if (selectedNudgeType === 'banner') return <BannerMinimalEditor />;
+      
+      if (selectedNudgeType === 'floater') return <FloaterMinimalEditor />;
+      if (selectedNudgeType === 'fullscreen' || selectedNudgeType === 'fullpage' || selectedNudgeType === 'spinthewheel') return <FullScreenMinimalEditor />;
+      return null;
+    }
+
+    // SPECIAL CASE: When Tooltip Container is selected, show tooltip config instead of layer properties
+    // REMOVED: This block prevented editing of child containers in tooltip mode.
+    // The logic at line 3029+ correctly handles the Root Tooltip Container,
+    // while allowing child containers to fall through to the standard ContainerEditor.
+    /*
+    if (selectedNudgeType === 'tooltip' &&
+      (selectedLayerObj.type === 'container' ||
+        selectedLayerObj.name?.toLowerCase().includes('tooltip container'))) {
+      return <TooltipMinimalEditor />;
+    }
+    */
+
+
+    // PIP Editor - Now uses unified Floater editor
+    if (selectedNudgeType === 'pip' && (!selectedLayerObj || selectedLayerObj.name?.toLowerCase().includes('container'))) {
+      return <FloaterMinimalEditor />;  // PiP consolidated into Floater
+    }
+
+    // Check if layer is locked (Phase A - Fix 1)
+    if (selectedLayerObj.locked) {
+      return (
+        <div style={{
+          padding: '40px 20px',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
+          color: colors.text.secondary
+        }}>
+          <Lock size={48} color={colors.gray[300]} />
+          <div style={{ fontSize: '14px', fontWeight: 500, color: colors.text.primary }}>Layer is Locked</div>
+          <div style={{ fontSize: '12px', maxWidth: '200px', lineHeight: '1.5' }}>
+            This layer cannot be edited while locked. Unlock it from the layers panel to make changes.
+          </div>
+        </div>
+      );
+    }
+
+    // Modal Configuration
+    const renderModalConfig = () => {
+      if (selectedNudgeType !== 'modal') return null;
+
+      // Resolve config from active interface OR main campaign
+      const activeConfig = activeInterface ? (activeInterface.modalConfig as any) : currentCampaign?.modalConfig;
+      const config = activeConfig || {
+        mode: 'image-only',
+        width: '90%',
+        height: 'auto',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        elevation: 2,
+        overlay: { enabled: true, opacity: 0.5, blur: 0, color: '#000000', dismissOnClick: true },
+        animation: { type: 'pop', duration: 300, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' }
+      };
+
+      const handleModalUpdate = (updates: any) => {
+        if (activeInterface?.id) {
+          updateInterface(activeInterface.id, { modalConfig: { ...activeConfig, ...updates } });
+        } else {
+          updateCampaign({ modalConfig: { ...activeConfig, ...updates } });
+        }
+      };
+
+      const handleConfigUpdate = (field: string, value: any) => {
+        handleModalUpdate({ [field]: value });
+      };
+
+      const handleNestedConfigUpdate = (parent: 'overlay' | 'animation', field: string, value: any) => {
+        const parentObj = config[parent] as any;
+        handleModalUpdate({ [parent]: { ...parentObj, [field]: value } });
+      };
+
+      const shouldShowFullConfig = !selectedLayerObj;
+
+      // ALWAYS show the mode toggle, even when child layers are selected
+      const modeToggleSection = (
+        <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            🎨 Modal Mode
+          </h5>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+            {/* Removed Container Mode Button */}
+            <button
+              onClick={() => {
+                handleConfigUpdate('mode', 'image-only');
+                handleConfigUpdate('width', 'auto');
+                handleConfigUpdate('backgroundColor', 'transparent');
+                handleConfigUpdate('borderRadius', 0);
+                handleConfigUpdate('elevation', 0);
+              }}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                padding: '12px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s',
+                backgroundColor: config.mode === 'image-only' ? colors.primary[50] : 'white',
+                border: `1px solid ${config.mode === 'image-only' ? colors.primary[500] : colors.gray[200]}`,
+                color: config.mode === 'image-only' ? colors.primary[600] : colors.text.secondary
+              }}
+            >
+              <div style={{ padding: '6px', borderRadius: '6px', backgroundColor: config.mode === 'image-only' ? colors.primary[100] : colors.gray[100] }}>
+                <ImageIcon size={16} />
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: 500 }}>Image Only</span>
+            </button>
+          </div>
+        </div>
+      );
+
+      if (!shouldShowFullConfig && selectedLayerObj) {
+        return (
+          <>
+            {modeToggleSection}
+            <button
+              onClick={() => {
+                // Find modal container ID
+                const modalContainer = currentCampaign?.layers?.find((l: any) => l.type === 'container' && l.name === 'Modal Container');
+                if (modalContainer) selectLayer(modalContainer.id);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                marginTop: '8px',
+                background: 'transparent',
+                border: `1px solid ${colors.gray[200]}`,
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 500,
+                color: colors.text.secondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <Settings2 size={14} />
+              More Modal Settings
+            </button>
+          </>
+        );
+      }
+
+      return (
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: colors.text.primary }}>Modal Settings</h4>
+          {config.mode === 'container' && (
+            <div style={{ padding: '12px', backgroundColor: colors.red[50], color: colors.red[600], borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+              Container mode is deprecated. Please switch to Image Only.
+            </div>
+          )}
+          {modeToggleSection}
+
+          {/* Background Image Upload (Image-Only Mode) */}
+          {config.mode === 'image-only' && (
+            <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+              <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                🖼️ Background Image
+              </h5>
+
+              {/* Image Preview */}
+              {config.backgroundImageUrl && (
+                <div style={{
+                  width: '100%',
+                  height: '120px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  marginBottom: '12px',
+                  border: `1px solid ${colors.gray[200]}`,
+                  position: 'relative'
+                }}>
+                  <img
+                    src={config.backgroundImageUrl}
+                    alt="Background preview"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: config.backgroundSize || 'cover'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleConfigUpdate('backgroundImageUrl', '')}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: 'rgba(0,0,0,0.6)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
+              )}
+
+              {/* URL Input */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '12px', color: colors.text.secondary, display: 'block', marginBottom: '6px' }}>
+                  Image URL
+                </label>
+                <input
+                  type="text"
+                  value={config.backgroundImageUrl || ''}
+                  onChange={(e) => handleConfigUpdate('backgroundImageUrl', e.target.value)}
+                  placeholder="https://example.com/image.png"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${colors.gray[200]}`,
+                    borderRadius: '6px',
+                    fontSize: '12px'
+                  }}
+                />
+              </div>
+
+              {/* Upload Button */}
+              <div style={{ marginBottom: '12px' }}>
+                <label
+                  htmlFor="bg-image-upload-modal"
+                  style={{
+                    display: 'block',
+                    padding: '10px',
+                    background: colors.primary[500],
+                    color: 'white',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  📤 Upload Image
+                </label>
+                <input
+                  id="bg-image-upload-modal"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert('Image must be under 5MB');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const base64 = event.target?.result as string;
+                      handleConfigUpdate('backgroundImageUrl', base64);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </div>
+
+              {/* Background Size */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '12px', color: colors.text.secondary, display: 'block', marginBottom: '6px' }}>
+                  Background Size
+                </label>
+                <select
+                  value={config.backgroundSize || 'cover'}
+                  onChange={(e) => handleConfigUpdate('backgroundSize', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${colors.gray[200]}`,
+                    borderRadius: '6px',
+                    fontSize: '12px'
+                  }}
+                >
+                  <option value="cover">Cover (fill area)</option>
+                  <option value="contain">Contain (fit inside)</option>
+                  <option value="fill">Fill (stretch)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+
+
+          {/* Border Radius */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🔲 Border Radius
+            </h5>
+            <div style={{ marginBottom: '8px' }}>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                value={typeof config.borderRadius === 'number' ? config.borderRadius : 16}
+                onChange={(e) => handleConfigUpdate('borderRadius', parseInt(e.target.value))}
+                style={{ width: '100%', cursor: 'pointer' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[0, 8, 16, 24].map((radius) => (
+                <button
+                  key={radius}
+                  onClick={() => handleConfigUpdate('borderRadius', radius)}
+                  style={{
+                    flex: 1,
+                    padding: '4px 8px',
+                    border: `1px solid ${colors.gray[200]}`,
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                    backgroundColor: config.borderRadius === radius ? colors.gray[100] : 'white'
+                  }}
+                >
+                  {radius}px
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Elevation */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ⬆️ Elevation
+            </h5>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+              {[0, 1, 2, 3, 4, 5].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => handleConfigUpdate('elevation', level)}
+                  style={{
+                    padding: '8px 4px',
+                    border: `1px solid ${(config.elevation || 0) === level ? colors.primary[500] : colors.gray[200]}`,
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    backgroundColor: (config.elevation || 0) === level ? colors.primary[50] : 'white',
+                    color: (config.elevation || 0) === level ? colors.primary[600] : colors.text.secondary,
+                    fontWeight: 500
+                  }}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Overlay Settings */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎭 Overlay
+            </h5>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '12px', color: colors.text.secondary }}>Show Overlay</span>
+              <div
+                onClick={() => handleNestedConfigUpdate('overlay', 'enabled', !config.overlay?.enabled)}
+                style={{
+                  width: '44px', height: '24px', borderRadius: '12px',
+                  background: config.overlay?.enabled ? colors.primary[500] : colors.gray[300],
+                  position: 'relative', cursor: 'pointer', transition: 'background 0.2s'
+                }}
+              >
+                <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: config.overlay?.enabled ? '22px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+              </div>
+            </div>
+            {config.overlay?.enabled && (
+              <>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Opacity</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={config.overlay.opacity}
+                    onChange={(e) => handleNestedConfigUpdate('overlay', 'opacity', parseFloat(e.target.value))}
+                    style={{ width: '100%', marginBottom: '4px' }}
+                  />
+                  <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{Math.round((config.overlay.opacity || 0) * 100)}%</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Close Button Control */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary }}>
+              ❌ Close Button
+            </h5>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.showCloseButton !== false}
+                onChange={(e) => handleConfigUpdate('showCloseButton', e.target.checked)}
+              />
+              <span style={{ fontSize: '12px', color: colors.text.secondary }}>Show Close Button</span>
+            </label>
+          </div>
+
+          {/* Animation Settings */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary }}>
+              ✨ Animation
+            </h5>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Type</label>
+              <select
+                value={config.animation?.type || 'pop'}
+                onChange={(e) => handleNestedConfigUpdate('animation', 'type', e.target.value)}
+                style={{ width: '100%', padding: '8px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '12px' }}
+              >
+                <option value="pop">Pop (Scale)</option>
+                <option value="fade">Fade</option>
+                <option value="slide-up">Slide Up</option>
+                <option value="slide-down">Slide Down</option>
+                <option value="slide-left">Slide Left</option>
+                <option value="slide-right">Slide Right</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Duration (ms)</label>
+              <input
+                type="number"
+                value={config.animation?.duration || 300}
+                onChange={(e) => handleNestedConfigUpdate('animation', 'duration', parseInt(e.target.value))}
+                style={{ width: '100%', padding: '8px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '12px' }}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    };
+    console.log('DEBUG: Passed renderModalConfig definition');
+
+
+    console.log('DEBUG: Reached post-renderBannerConfig (2130)');
+
+
+
+    const renderTooltipConfig = () => {
+      if (selectedNudgeType !== 'tooltip') return null;
+
+      const config = currentCampaign?.tooltipConfig || {} as Partial<TooltipConfig>;
+
+      const handleTooltipUpdate = (field: string, value: any) => {
+        // Auto-populate targetScrollOffset when element is selected
+        if (field === 'targetElementId' && value && selectedPage?.scrollData) {
+          const sd = selectedPage.scrollData;
+          updateTooltipConfig({
+            [field]: value,
+            targetScrollOffset: {
+              scrollY: sd.pageScrollY || 0,
+              scrollX: sd.pageScrollX || 0,
+            },
+          });
+          return;
+        }
+        updateTooltipConfig({ [field]: value });
+      };
+
+      // Show tooltip config when:
+      // 1. Tooltip container is selected
+      // 2. No layer is selected
+      const isTooltipContainer = selectedLayerObj?.type === 'container' && selectedLayerObj?.name === 'Tooltip Container';
+      const tooltipContainerLayer = currentCampaign?.layers?.find((l: any) => l.type === 'container' && l.name === 'Tooltip Container');
+      const shouldShowFullConfig = !selectedLayerObj || isTooltipContainer;
+
+      if (!shouldShowFullConfig) return null;
+
+      return (
+        <>
+          {/* Target Selection */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎯 Target
+            </h5>
+
+            {/* Page Selection */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Target Page</label>
+              <select
+                value={config.targetPageId || ''}
+                onChange={(e) => handleTooltipUpdate('targetPageId', e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+              >
+                <option value="">Select a page...</option>
+                {pages.map(page => (
+                  <option key={page._id} value={page._id}>{page.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Element Selection */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Target Element</label>
+              <div style={{ position: 'relative' }}>
+                {selectedPage && selectedPage.elements && selectedPage.elements.length > 0 ? (
+                  <select
+                    value={config.targetElementId || ''}
+                    onChange={(e) => handleTooltipUpdate('targetElementId', e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+                  >
+                    <option value="">Select an element...</option>
+                    {selectedPage.elements.map((el: any) => (
+                      <option key={el.id} value={el.id}>
+                        {el.id} {el.tagName ? `(${el.tagName})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ padding: '8px 12px', border: `1px dashed ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', color: colors.text.secondary, background: colors.gray[50] }}>
+                    {selectedPage ? 'No elements found on this page' : 'Select a page first'}
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: '11px', color: colors.text.secondary, marginTop: '4px' }}>
+                Enter the ID of the EmbedWidgetWrapper in your app.
+              </div>
+            </div>
+
+            {/* Position */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Position</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {['top', 'bottom', 'left', 'right'].map((pos) => (
+                  <button
+                    key={pos}
+                    onClick={() => handleTooltipUpdate('position', pos)}
+                    style={{
+                      padding: '8px',
+                      border: `1px solid ${config.position === pos ? colors.primary[500] : colors.gray[200]}`,
+                      borderRadius: '6px',
+                      background: config.position === pos ? colors.primary[50] : 'white',
+                      color: config.position === pos ? colors.primary[600] : colors.text.secondary,
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', marginTop: '12px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500, color: colors.text.secondary }}>Timeline Mode</label>
+                <div
+                  onClick={() => handleTooltipUpdate('timelineMode', !config.timelineMode)}
+                  style={{
+                    width: '36px', height: '20px', backgroundColor: config.timelineMode ? colors.primary[500] : colors.gray[300],
+                    borderRadius: '10px', position: 'relative', cursor: 'pointer', transition: 'background-color 0.2s'
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: '2px', left: config.timelineMode ? '18px' : '2px',
+                    width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%',
+                    transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                  }} />
+                </div>
+              </div>
+              {config.timelineMode && (
+                <div style={{ fontSize: '11px', color: colors.orange[600], marginTop: '-8px', marginBottom: '12px', backgroundColor: colors.orange[50], padding: '8px', borderRadius: '6px' }}>
+                  Taking click action on tooltip body to proceed.
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Offsets (Fine Tuning) */}
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px dashed ${colors.gray[200]}` }}>
+            <label style={{ display: 'block', fontSize: '11px', color: colors.text.secondary, marginBottom: '6px' }}>Fine Tune Position (px)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', color: colors.text.secondary, marginBottom: '2px' }}>Offset X</label>
+                <input
+                  type="number"
+                  value={config.offsetX || 0}
+                  onChange={(e) => handleTooltipUpdate('offsetX', parseInt(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '6px', border: `1px solid ${colors.gray[200]}`, borderRadius: '4px', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', color: colors.text.secondary, marginBottom: '2px' }}>Offset Y</label>
+                <input
+                  type="number"
+                  value={config.offsetY || 0}
+                  onChange={(e) => handleTooltipUpdate('offsetY', parseInt(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '6px', border: `1px solid ${colors.gray[200]}`, borderRadius: '4px', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Size */}
+          {/* Size */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              📏 Size
+            </h5>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {['width', 'height'].map((field) => {
+                const label = field.charAt(0).toUpperCase() + field.slice(1);
+                // Safely access config value
+                const val = (config as any)[field] || (field === 'width' ? 'max-content' : 'auto');
+
+                // Determine current unit and numeric value
+                const strVal = String(val);
+                const isPercent = strVal.endsWith('%');
+                const isPx = !isPercent; // Default to px for anything else (numbers, "px", "auto", etc.)
+
+                // Extract number: "50%" -> 50, "100px" -> 100, 100 -> 100, "auto" -> ""
+                const numVal = parseInt(strVal) || '';
+
+                return (
+                  <div key={field}>
+                    <label style={{ display: 'block', fontSize: '11px', color: colors.text.secondary, marginBottom: '2px' }}>{label}</label>
+                    <div style={{ display: 'flex', border: `1px solid ${colors.gray[200]}`, borderRadius: '4px', overflow: 'hidden' }}>
+                      <input
+                        type="number"
+                        value={numVal}
+                        placeholder={field === 'width' ? 'Auto' : 'Auto'}
+                        onChange={(e) => {
+                          const newVal = e.target.value;
+                          const unit = isPercent ? '%' : 'px';
+                          // If empty, set to undefined/auto/max-content? Let's use empty string or null to fallback to default in renderer
+                          // But renderer uses config.width || 'max-content'. So if I set '', it goes to default.
+                          handleTooltipUpdate(field, newVal ? `${newVal}${unit}` : '');
+                        }}
+                        style={{ flex: 1, border: 'none', padding: '6px', fontSize: '12px', outline: 'none' }}
+                      />
+                      <div style={{ display: 'flex', borderLeft: `1px solid ${colors.gray[200]}` }}>
+                        <button
+                          onClick={() => handleTooltipUpdate(field, numVal ? `${numVal}px` : '300px')}
+                          style={{
+                            padding: '0 6px',
+                            background: isPx ? colors.primary[50] : 'white',
+                            color: isPx ? colors.primary[600] : colors.text.secondary,
+                            border: 'none',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            fontWeight: 500
+                          }}
+                        >
+                          PX
+                        </button>
+                        <button
+                          onClick={() => handleTooltipUpdate(field, numVal ? `${numVal}%` : '50%')}
+                          style={{
+                            padding: '0 6px',
+                            background: isPercent ? colors.primary[50] : 'white',
+                            color: isPercent ? colors.primary[600] : colors.text.secondary,
+                            border: 'none',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            borderLeft: `1px solid ${colors.gray[200]}`
+                          }}
+                        >
+                          %
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+
+          {/* Content Mode (New Feature) */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🖼️ Content
+            </h5>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Mode</label>
+              <div style={{ display: 'flex', background: colors.gray[100], padding: '2px', borderRadius: '6px' }}>
+                {['standard', 'image', 'advanced', 'html'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      handleTooltipUpdate('mode', mode);
+                      if (mode === 'image') {
+                        // Auto-clear background and shadow for cleaner PNG look
+                        handleTooltipUpdate('backgroundColor', 'transparent');
+                        handleTooltipUpdate('boxShadow', 'none');
+
+                        // FIX: Explicitly clear layer styles too, as they now have priority over config
+                        if (tooltipContainerLayer) {
+                          updateLayer(tooltipContainerLayer.id, {
+                            style: {
+                              ...tooltipContainerLayer.style,
+                              backgroundColor: undefined,
+                              boxShadow: undefined,
+                              border: undefined
+                            }
+                          });
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '6px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      background: (config.mode || 'standard') === mode ? 'white' : 'transparent',
+                      color: (config.mode || 'standard') === mode ? colors.primary[600] : colors.text.secondary,
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      boxShadow: (config.mode || 'standard') === mode ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {mode === 'standard' ? 'Standard (Layers)' : 'Image Only'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {
+              config.mode === 'image' && (
+                <>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Tooltip Image</label>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        value={config.imageUrl || ''}
+                        onChange={(e) => handleTooltipUpdate('imageUrl', e.target.value)}
+                        placeholder="Enter image URL..."
+                        style={{ flex: 1, padding: '8px 12px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+                      />
+                      <label style={{
+                        padding: '8px 12px',
+                        background: colors.primary[500],
+                        color: 'white',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        Upload
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            // Mock upload for now or reuse existing handler if possible, 
+                            // but for this snippet I'll assumme a direct URL update logic or add a basic handler inline if simple.
+                            // Leveraging handleImageUpload from parent scope if available? 
+                            // Yes, handleImageUpload exists in scope.
+                            handleImageUpload(e, 'tooltip_image_only');
+                          }}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+                    {config.imageUrl && (
+                      <div style={{
+                        width: '100%',
+                        height: '100px',
+                        borderRadius: '6px',
+                        background: `url('${config.imageUrl}') center/cover no-repeat`,
+                        border: `1px solid ${colors.gray[200]}`
+                      }} />
+                    )}
+                  </div>
+
+                </>
+              )
+            }
+          </div>
+
+          {/* Advanced Mode: Brand of the Day Panel */}
+          {
+            config.mode === 'advanced' && (
+              <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+                <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ✨ Advanced Style
+                </h5>
+
+                {/* Gradient */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Gradient Flow</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                    <input type="color" value={config.gradientWith || '#84cc16'} onChange={(e) => handleTooltipUpdate('gradientWith', e.target.value)} style={{ width: '100%', height: '30px' }} />
+                    <input type="color" value={config.gradientTo || '#15803d'} onChange={(e) => handleTooltipUpdate('gradientTo', e.target.value)} style={{ width: '100%', height: '30px' }} />
+                  </div>
+                  <input type="range" min="0" max="360" value={config.gradientAngle || 45} onChange={(e) => handleTooltipUpdate('gradientAngle', Number(e.target.value))} style={{ width: '100%' }} />
+                </div>
+
+                {/* Arrow Style */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Arrow Style</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleTooltipUpdate('arrowStyle', 'triangle')}
+                      style={{ padding: '6px', border: `1px solid ${config.arrowStyle === 'bubble' ? colors.gray[200] : colors.primary[500]}`, borderRadius: '4px', background: config.arrowStyle !== 'bubble' ? colors.primary[50] : 'white' }}
+                    >Triangle</button>
+                    <button
+                      onClick={() => handleTooltipUpdate('arrowStyle', 'bubble')}
+                      style={{ padding: '6px', border: `1px solid ${config.arrowStyle === 'bubble' ? colors.primary[500] : colors.gray[200]}`, borderRadius: '4px', background: config.arrowStyle === 'bubble' ? colors.primary[50] : 'white' }}
+                    >Speech Bubble</button>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          {/* HTML Mode: Code Editor */}
+          {
+            config.mode === 'html' && (
+              <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+                <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  💻 Custom HTML
+                </h5>
+                <textarea
+                  value={config.htmlContent || '<div style="padding:10px; background:white; color:black; border-radius:8px;">Hello World</div>'}
+                  onChange={(e) => handleTooltipUpdate('htmlContent', e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '200px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    padding: '8px',
+                    border: `1px solid ${colors.gray[300]}`,
+                    borderRadius: '6px',
+                    resize: 'vertical'
+                  }}
+                  placeholder="Enter HTML/CSS here..."
+                />
+              </div>
+            )
+          }
+
+          {/* Appearance */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎨 Appearance
+            </h5>
+
+            {/* Roundness */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Roundness</label>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                value={config.borderRadius || 8}
+                onChange={(e) => handleTooltipUpdate('borderRadius', parseInt(e.target.value))}
+                style={{ width: '100%', marginBottom: '4px' }}
+              />
+              <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{config.borderRadius || 8}px</div>
+            </div>
+
+            {/* Padding */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Padding</label>
+              <input
+                type="range"
+                min="0"
+                max="32"
+                value={config.padding || 12}
+                onChange={(e) => handleTooltipUpdate('padding', parseInt(e.target.value))}
+                style={{ width: '100%', marginBottom: '4px' }}
+              />
+              <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{config.padding || 12}px</div>
+            </div>
+          </div>
+
+
+
+          {/* Overlay & Highlight */}
+          <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+            <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🎭 Overlay & Highlight
+            </h5>
+
+            {/* Overlay Color */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Overlay Color</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={config.overlayColor || '#000000'}
+                  onChange={(e) => handleTooltipUpdate('overlayColor', e.target.value)}
+                  style={{ width: '40px', height: '40px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={config.overlayColor || '#000000'}
+                  onChange={(e) => handleTooltipUpdate('overlayColor', e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            {/* Overlay Opacity */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Overlay Opacity</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={config.overlayOpacity ?? 0.5}
+                onChange={(e) => handleTooltipUpdate('overlayOpacity', parseFloat(e.target.value))}
+                style={{ width: '100%', marginBottom: '4px' }}
+              />
+              <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{Math.round((config.overlayOpacity ?? 0.5) * 100)}%</div>
+            </div>
+
+            {/* Target Highlight Color */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Highlight Color</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={config.targetHighlightColor || '#FFFFFF'}
+                  onChange={(e) => handleTooltipUpdate('targetHighlightColor', e.target.value)}
+                  style={{ width: '40px', height: '40px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', cursor: 'pointer' }}
+                />
+                <input
+                  type="text"
+                  value={config.targetHighlightColor || '#FFFFFF'}
+                  onChange={(e) => handleTooltipUpdate('targetHighlightColor', e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', border: `1px solid ${colors.gray[200]}`, borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            {/* Target Padding */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Highlight Padding</label>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                value={config.targetHighlightPadding || 4}
+                onChange={(e) => handleTooltipUpdate('targetHighlightPadding', parseInt(e.target.value))}
+                style={{ width: '100%', marginBottom: '4px' }}
+              />
+              <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{config.targetHighlightPadding || 4}px</div>
+            </div>
+
+            {/* Target Roundness */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: colors.text.secondary, marginBottom: '6px' }}>Highlight Roundness</label>
+              <input
+                type="range"
+                min="0"
+                max="50"
+                value={config.targetRoundness || 4}
+                onChange={(e) => handleTooltipUpdate('targetRoundness', parseInt(e.target.value))}
+                style={{ width: '100%', marginBottom: '4px' }}
+              />
+              <div style={{ fontSize: '12px', color: colors.text.primary, textAlign: 'right' }}>{config.targetRoundness || 4}px</div>
+            </div>
+          </div>
+        </>
+      );
+    };
+    console.log('DEBUG: Passed renderBannerConfig definition');
+
+    const renderFloaterConfig = () => {
+      if ((selectedNudgeType as string) !== 'floater') return null;
+      return <FloaterMinimalEditor />;
+    };
+
+    // PIP Configuration (Phase 13)
+
+
+
+
+    // Common style properties
+    const renderCommonStyles = () => {
+      return (
+        <CommonStyleControls
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+
+      );
+    };
+    console.log('DEBUG: Passed renderCommonStyles definition');
+
+    console.log('Checking for handle type...', selectedLayerObj.type);
+    // Handle Properties (Drag Handle)
+
+    // Media/Image properties
+    if (selectedLayerObj.type === 'media' || selectedLayerObj.type === 'image' || selectedLayerObj.type === 'video' || selectedLayerObj.type === 'icon' || selectedLayerObj.type === 'overlay') {
+      return (
+        <MediaEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          handleImageUpload={handleImageUpload}
+          colors={colors}
+        />
+      );
+    }
+
+    // Lottie properties
+    if (selectedLayerObj.type === 'lottie') {
+      return (
+        <LottieEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Rive properties
+    if (selectedLayerObj.type === 'rive') {
+      return (
+        <RiveEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+
+    // Container properties (Generic)
+    if (selectedLayerObj.type === 'container') {
+      // FIX: Check nudgeType FIRST to prevent "Modal Settings" showing for "Bottomsheet" due to legacy names
+      // Ensure we check ACTIVE INTERFACE context primarily
+      const activeInterface = currentCampaign?.interfaces?.find((i: any) => i.id === activeInterfaceId);
+      const effectiveNudgeType = activeInterface ? activeInterface.nudgeType : currentCampaign?.nudgeType;
+
+      const nudgeType = effectiveNudgeType;
+
+      // Root Layer Authority: If it's the root container, force the correct editor based on campaign type
+      // regardless of what the layer is named.
+      const isRootLayer = !selectedLayerObj.parent;
+
+      // Stories mode: distinguish root Slide Container vs individual Slide layers
+      if (activeStoryId && selectedLayerObj.type === 'container') {
+        const isRootSlideContainer = !selectedLayerObj.parent;
+        if (isRootSlideContainer) {
+          // Root "Slide Container" → global config (timing, controls, progress bar)
+          return <StoriesMinimalEditor />;
+        } else {
+          // Slide 1/2/3 → per-slide background/media editor
+          return <SlideMinimalEditor />;
+        }
+      }
+
+      if (isRootLayer) {
+        if (nudgeType === 'fullscreen' || nudgeType === 'fullpage' || nudgeType === 'spinthewheel') return <FullScreenMinimalEditor />;
+        if (nudgeType === 'floater') return renderFloaterConfig();
+        if (nudgeType === 'tooltip') return <TooltipMinimalEditor />;
+        if (nudgeType === 'bottomsheet') return <BottomSheetMinimalEditor />;
+      }
+
+      // Fallback for non-root containers or if nudgeType match failed (generic handling)
+
+      return (
+        <>
+          {selectedLayerObj.name === 'PIP Container' && renderPipConfig()}
+          {selectedLayerObj.name === 'Tooltip Container' && <TooltipMinimalEditor />}
+          <ContainerEditor
+            layer={selectedLayerObj}
+            selectedLayerId={selectedLayerId!}
+            updateLayer={updateLayer}
+            onStyleUpdate={handleStyleUpdate}
+            handleTooltipUpdate={handleTooltipUpdate}
+            colors={colors}
+          />
+        </>
+      );
+    }
+    
+    // Grid Container
+    if (selectedLayerObj.type === 'grid_container') {
+      return (
+        <GridContainerEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          onStyleUpdate={handleStyleUpdate}
+          colors={colors}
+        />
+      );
+    }
+    
+    // Grid Item Template — uses full ContainerEditor for design properties
+    if (selectedLayerObj.type === 'grid_item') {
+      return (
+        <>
+          <div style={{
+            margin: '8px 12px', padding: '10px 12px',
+            background: 'linear-gradient(135deg, #fef3c7, #fefce8)',
+            border: '1px solid #fde68a', borderRadius: '8px',
+            fontSize: '11px', color: '#92400e', lineHeight: 1.4
+          }}>
+            <strong style={{ display: 'block', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              🔁 Grid Loop Template
+            </strong>
+            This element is cloned for each item from the data source. Design its appearance below — all children will inherit the same layout per item.
+          </div>
+          <ContainerEditor
+            layer={selectedLayerObj}
+            selectedLayerId={selectedLayerId!}
+            updateLayer={updateLayer}
+            onStyleUpdate={handleStyleUpdate}
+            handleTooltipUpdate={handleTooltipUpdate}
+            colors={colors}
+          />
+        </>
+      );
+    }
+
+    // Text properties
+    if (selectedLayerObj.type === 'text') {
+      return (
+        <TextEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+
+    // Button/CTA properties
+    if (selectedLayerObj.type === 'button') {
+      return (
+        <ButtonEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+
+    // Progress Bar properties (Phase 2)
+    if (selectedLayerObj.type === 'progress-bar') {
+      return (
+        <ProgressBarEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Progress Circle properties (Phase 2)
+
+
+
+    // List properties (Phase 2)
+
+    // Input properties (Phase 2)
+    if (selectedLayerObj.type === 'input') {
+      return (
+        <InputEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Copy Button properties
+    if (selectedLayerObj.type === 'copy_button') {
+      return (
+        <CopyButtonEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          handleImageUpload={handleImageUpload}
+          colors={colors}
+        />
+      );
+    }
+
+    // Checkbox properties
+
+    // Statistic properties (Phase 2)
+    if (selectedLayerObj.type === 'statistic') {
+      return (
+        <StatisticEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Rating properties (Phase 3.5)
+
+    // Badge properties (Phase 3.5)
+
+    // Gradient Overlay properties (Feature 4 - Gradient Builder UI)
+    if (selectedLayerObj.type === 'gradient-overlay') {
+      return (
+        <GradientEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Scratch Foil properties
+    if (selectedLayerObj.type === 'scratch_foil') {
+      return (
+        <ScratchFoilEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Custom HTML properties
+    if (selectedLayerObj.type === 'custom_html') {
+      return (
+        <CustomHtmlEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          onStyleUpdate={handleStyleUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Carousel properties
+    if (selectedLayerObj.type === 'carousel') {
+      return (
+        <CarouselLayerEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+    // Countdown properties
+    if (selectedLayerObj.type === 'countdown') {
+      return (
+        <CountdownEditor
+          layer={selectedLayerObj}
+          selectedLayerId={selectedLayerId!}
+          updateLayer={updateLayer}
+          handleContentUpdate={handleContentUpdate}
+          onStyleUpdate={handleStyleUpdate}
+          handleTooltipUpdate={handleTooltipUpdate}
+          colors={colors}
+        />
+      );
+    }
+
+
+    // Spin The Wheel properties
+    if (selectedLayerObj.type === 'spinthewheel') {
+      return <SpinTheWheelEditor />;
+    }
+
+    // Default properties
+    return (
+      <>
+
+        {renderModalConfig()}
+        {renderPipConfig()}
+        {renderTooltipConfig()}
+        <div style={{ marginBottom: '20px' }}>
+          <h5 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 600, color: colors.text.primary }}>Layer Properties</h5>
+          <p style={{ fontSize: '13px', color: colors.text.secondary }}>Select a layer to edit its properties</p>
+        </div>
+        {renderCommonStyles()}
+      </>
+    );
+
+  };
+
+
+  // Handler for template selection
+  const handleTemplateSelect = async (templateId: string) => {
+    const template = BOTTOM_SHEET_TEMPLATES.find(t => t.id === templateId);
+
+    if (!template) {
+      toast.error('Template not found');
+      return;
+    }
+
+    try {
+      // Create campaign first
+      createCampaign(
+        selectedExperience as any || 'nudges',
+        'bottomsheet' as any
+      );
+
+      // FIX: Apply template CORRECTLY (passing full object, not just layers)
+      // And await it to ensure store is updated
+      await loadTemplate(template);
+
+      // FIX: Save campaign to backend BEFORE navigating
+      // This ensures loadCampaign(id) succeeds on the new route
+      await saveCampaign();
+
+      // Navigate to the new campaign ID
+      const { currentCampaign } = useEditorStore.getState();
+      if (currentCampaign?.id) {
+        navigate(`/campaign-builder?id=${currentCampaign.id}&experience=${selectedExperience || 'nudges'}`, { replace: true });
+        toast.success(`Template "${template.name}" loaded successfully!`);
+      }
+
+      setTemplateModalOpen(false);
+      setShowEditor(true);
+
+    } catch (error) {
+      console.error('Template selection error:', error);
+      toast.error('Failed to apply template');
+    }
+  };
+
+  // Handler for starting from scratch
+  const handleStartFromScratch = () => {
+    createCampaign(
+      selectedExperience as any || 'nudges',
+      'bottomsheet' as any
+    );
+
+    // FIX: Navigate to the new campaign ID immediately
+    const { currentCampaign } = useEditorStore.getState();
+    if (currentCampaign?.id) {
+      navigate(`/campaign-builder?id=${currentCampaign.id}&experience=${selectedExperience || 'nudges'}`, { replace: true });
+    }
+
+    setTemplateModalOpen(false);
+    setShowEditor(true);
+    toast.info('Starting with blank canvas...');
+  };
+
+  // Handler for saving campaign
+  const handleSaveCampaign = async () => {
+    if (!currentCampaign) {
+      toast.error('No campaign to save');
+      return;
+    }
+
+    // FIX #5: Validate before save
+    if (!currentCampaign.name || currentCampaign.name.trim() === '') {
+      toast.error('Please enter a campaign name');
+      return;
+    }
+
+    if (!currentCampaign.layers || currentCampaign.layers.length === 0) {
+      toast.error('Campaign must have at least one layer');
+      return;
+    }
+
+    try {
+      const oldId = currentCampaign.id;
+      await saveCampaign();
+      toast.success('Campaign saved successfully!');
+
+      // FIX #2: Update URL parameter if campaign ID changed
+      const { currentCampaign: updatedCampaign } = useEditorStore.getState();
+      const newId = updatedCampaign?.id;
+      if (newId && newId !== oldId) {
+        navigate(`/campaign-builder?id=${newId}`, { replace: true });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save campaign');
+    }
+  };
+
+  // Handler for loading campaign (for testing)
+  const handleLoadCampaign = async () => {
+    const campaignId = prompt('Enter campaign ID to load:');
+    if (!campaignId) return;
+
+    try {
+      const { loadCampaign } = useEditorStore.getState();
+      await loadCampaign(campaignId);
+      toast.success('Campaign loaded successfully!');
+    } catch (error) {
+      toast.error('Failed to load campaign');
+      console.error('Load error:', error);
+    }
+  };
+
+  // Handler for launching campaign
+  const handleLaunchCampaign = async () => {
+    if (!currentCampaign) {
+      toast.error('No campaign to launch');
+      return;
+    }
+
+    // FIX #5: Validate before launch
+    if (!currentCampaign.name || currentCampaign.name.trim() === '') {
+      toast.error('Please enter a campaign name before launching');
+      return;
+    }
+
+    if (!currentCampaign.layers || currentCampaign.layers.length === 0) {
+      toast.error('Campaign must have at least one layer');
+      return;
+    }
+
+    try {
+      // Update campaign status to active in the store
+      updateStatus('active');
+
+      // Save the campaign with active status
+      await saveCampaign();
+
+      toast.success('🚀 Campaign launched successfully!');
+
+      // Navigate to campaigns page after short delay
+      setTimeout(() => {
+        navigate('/campaigns');
+      }, 1500);
+    } catch (error) {
+      console.error('Launch campaign error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to launch campaign');
+    }
+  };
+
+  // Early return for campaign creation flow - AFTER all hooks
+  if (!showEditor) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/campaigns')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <h1 className="text-xl font-semibold text-gray-900">Create New Campaign</h1>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-8">
+          <div className="max-w-6xl mx-auto space-y-8">
+            {/* Target Page Context Selection (New Feature) */}
+            {!searchParams.get('experience') && (
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Target Page Context</h2>
+                <p className="text-sm text-gray-500 mb-4">Select an App Screen to visualize and target specific elements.</p>
+                <div className="w-full max-w-md">
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    value={selectedPageId || ''}
+                    onChange={(e) => setSelectedPageId(e.target.value)}
+                  >
+                    <option value="">-- Select an App Screen --</option>
+                    {pages.map((page) => (
+                      <option key={page._id} value={page._id}>
+                        {page.name} ({page.pageTag})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+            )}
+
+            {/* Experience Selection */}
+            {/* Experience Selection - Only show if not pre-selected via URL */}
+            {!searchParams.get('experience') && (
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose Experience</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {experienceTypes.map((type) => (
+                    <div
+                      key={type.id}
+                      onClick={() => handleExperienceSelect(type.id)}
+                      className={`
+                      relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 group
+                      ${selectedExperience === type.id
+                          ? 'border-indigo-600 bg-indigo-50 shadow-md'
+                          : 'border-white bg-white hover:border-indigo-200 hover:shadow-lg'}
+                    `}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-white shadow-sm"
+                        style={{ background: type.gradient }}
+                      >
+                        <type.Icon size={24} />
+                      </div>
+                      <h3 className="font-semibold text-gray-900 mb-1">{type.label}</h3>
+                      <p className="text-sm text-gray-500">Create engaging {type.label.toLowerCase()} for your users</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Nudge Type Selection (Only if Nudges is selected) */}
+            {/* Nudge Type Selection - Show for ANY experience that has mapped types */}
+            {(selectedExperience && EXPERIENCE_MAPPING[selectedExperience]) && (
+              <section>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Choose Nudge Type</h2>
+                <p className="text-sm text-gray-500 mb-6">Select the type of nudge you want to create for your campaign</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '32px' }}>
+                  {nudgeTypes
+                    .filter(type => {
+                      if (!selectedExperience) return false;
+                      const allowedTypes = EXPERIENCE_MAPPING[selectedExperience];
+                      return allowedTypes?.includes(type.id);
+                    })
+                    .map((type) => (
+                      <div
+                        key={type.id}
+                        onClick={() => handleNudgeTypeSelect(type.id)}
+                        style={{ cursor: 'pointer' }}
+                        className="group"
+                      >
+                        <div style={{
+                          aspectRatio: '9/16',
+                          backgroundColor: type.bg || colors.primary[50],
+                          borderRadius: '16px',
+                          border: `1px solid ${type.iconBg}80`,
+                          marginBottom: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                        }}
+                          className="group-hover:shadow-xl group-hover:border-indigo-400 group-hover:-translate-y-1"
+                        >
+                          {/* Visual representation */}
+                          {(type.id === 'fullpage' || type.id === 'fullscreen') && <div style={{ width: '100%', height: '100%', backgroundColor: type.iconBg }} />}
+                          {type.id === 'bottomsheet' && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', backgroundColor: type.iconColor, borderTopLeftRadius: '20px', borderTopRightRadius: '20px' }} />}
+                          {type.id === 'floater' && <div style={{ position: 'absolute', bottom: '24px', right: '24px', width: '64px', height: '64px', backgroundColor: type.iconColor, borderRadius: '50%' }} />}
+                          {type.id === 'tooltip' && (
+                            <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <div style={{ width: '120px', height: '80px', backgroundColor: type.iconColor, borderRadius: '16px', position: 'relative', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                                <div style={{ position: 'absolute', bottom: '-15px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '15px solid transparent', borderRight: '15px solid transparent', borderTop: `15px solid ${type.iconColor}` }} />
+                              </div>
+                              <div style={{ width: '24px', height: '24px', backgroundColor: type.iconColor, borderRadius: '50%', marginTop: '30px' }} />
+                            </div>
+                          )}
+
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', backgroundColor: 'rgba(99, 102, 241, 0.05)' }} className="group-hover:opacity-100">
+                            <div style={{ backgroundColor: 'white', padding: '10px 20px', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '13px', fontWeight: 600, color: type.iconColor }}>
+                              Select {type.label}
+                            </div>
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-gray-800 text-lg text-center group-hover:text-indigo-600 transition-colors">
+                          {type.label}
+                        </h3>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </main>
+
+        {/* Template Gallery Modal */}
+        <TemplateGallery
+          isOpen={isTemplateModalOpen}
+          onClose={() => setTemplateModalOpen(false)}
+          onSelectTemplate={(template) => {
+            // Create campaign with template
+            // FIX: Use template type instead of hardcoded 'bottomsheet'
+            const type = template.type || template.config?.nudgeType || template.config?.type || 'bottomsheet';
+            createCampaign(
+              (selectedExperience || selectedExperienceType) as any || 'nudges',
+              type as any
+            );
+
+            // Load template
+            loadTemplate(template);
+
+            // Navigate to editor
+            const { currentCampaign } = useEditorStore.getState();
+            if (currentCampaign?.id) {
+              navigate(`/campaign-builder?id=${currentCampaign.id}&experience=${selectedExperience || selectedExperienceType || 'nudges'}`, { replace: true });
+            }
+
+            setShowEditor(true);
+            toast.success('Template loaded successfully');
+          }}
+          onStartBlank={() => {
+            // Create campaign without template
+            // FIX: Use selectedNudgeType or default to modal (safer default for blank)
+            const typeToUse = selectedNudgeType || currentCampaign?.nudgeType || 'modal';
+            createCampaign(
+              (selectedExperience || selectedExperienceType) as any || 'nudges',
+              typeToUse as any
+            );
+
+            // Navigate to editor
+            const { currentCampaign: updatedCampaign } = useEditorStore.getState();
+            if (updatedCampaign?.id) {
+              navigate(`/campaign-builder?id=${updatedCampaign.id}&experience=${selectedExperience || selectedExperienceType || 'nudges'}`, { replace: true });
+            }
+
+            setShowEditor(true);
+            toast.success('Started with blank canvas');
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+
+
+
+      {/* Template Gallery */}
+      <TemplateGallery
+        isOpen={isTemplateModalOpen}
+        nudgeType={selectedNudgeType} // Filter templates by current type
+        onClose={() => setTemplateModalOpen(false)}
+        onSelectTemplate={(template) => {
+          // If creating new, don't confirm
+          if (isCreating) {
+            loadTemplate(template);
+            setIsCreating(false);
+            // Also set the nudge type based on the template
+            // Fix: Safely access nudgeType, fallback to template.type (which matches backend schema)
+            const type = template.config?.nudgeType || template.type;
+            if (type) {
+              setSelectedNudgeType(type);
+            }
+            toast.success('Template loaded successfully');
+          } else {
+            // Existing flow
+            if (window.confirm('Loading a template will overwrite your current design. Continue?')) {
+              loadTemplate(template);
+              toast.success('Template loaded successfully');
+            }
+          }
+        }}
+        onStartBlank={() => {
+          setTemplateModalOpen(false);
+          if (isCreating) {
+            setIsCreating(false);
+            // FIX: Robustly determine nudge type
+            if (!selectedNudgeType) {
+              if (currentCampaign?.nudgeType) {
+                setSelectedNudgeType(currentCampaign.nudgeType);
+              } else {
+                setSelectedNudgeType('modal');
+              }
+            }
+            toast.success('Started with blank canvas');
+          }
+        }}
+      />
+
+      {/* Save Template Modal */}
+      <SaveTemplateModal
+        isOpen={isSaveTemplateModalOpen}
+        onClose={() => setSaveTemplateModalOpen(false)}
+      />
+
+
+
+
+
+
+
+      <ErrorBoundary>
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {/* Design Tab - Nudge Selection Flow */}
+            {(() => {
+              console.log('DesignStep Render: selectedNudgeType=', selectedNudgeType, 'isCreating=', isCreating);
+              return null; // Just for logging
+            })()}
+            {!selectedNudgeType && (
+              <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.gray[50] }}>
+
+                {/* Empty State / Interface Selector (Image 3 equivalent) */}
+                {/* 1. Empty State (Image 3) */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    margin: '0 auto 24px',
+                    backgroundColor: 'white',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                  }}>
+                    <Layout size={32} color={colors.gray[400]} />
+                  </div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: colors.text.primary }}>
+                    No interfaces found
+                  </h3>
+                  <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: colors.text.secondary }}>
+                    Begin by adding an interface.
+                  </p>
+                  
+                  <Dialog open={isInterfaceModalOpen} onOpenChange={setIsInterfaceModalOpen}>
+                    <DialogTrigger asChild>
+                      <button
+                        style={{
+                          padding: '10px 20px',
+                          backgroundColor: colors.gray[100],
+                          color: colors.text.primary,
+                          border: `1px solid ${colors.gray[200]}`,
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.gray[200]; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colors.gray[100]; }}
+                      >
+                        <Plus size={16} />
+                        Create Interface
+                      </button>
+                    </DialogTrigger>
+                    
+                    <DialogContent className="sm:max-w-[700px] bg-white p-0 overflow-hidden rounded-xl border-0 shadow-lg">
+                      <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-10">
+                        <DialogTitle className="text-xl font-semibold text-gray-900 mb-1">Select Nudge Type</DialogTitle>
+                        <p className="text-sm text-gray-500">Choose the perfect entry point for your campaign.</p>
+                      </div>
+                      
+                      <div className="p-6 max-h-[70vh] overflow-y-auto">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '24px' }}>
+                          {DESIGN_TYPES
+                            .filter(type => {
+                                if (currentCampaign?.type === 'scratchcard' || currentCampaign?.nudgeType === 'scratchcard') {
+                                    return ['floater', 'fullpage'].includes(type.id);
+                                }
+                                return ['floater', 'bottomsheet', 'fullpage', 'tooltip'].includes(type.id);
+                            })
+                            .map((type) => {
+                              const Icon = type.icon;
+                              return (
+                                <div
+                                  key={type.id}
+                                  onClick={() => handleSafeInterfaceAttach(type.id)}
+                                  className="group relative bg-white p-6 rounded-2xl border-2 border-gray-100 hover:border-indigo-400 hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1"
+                                  style={{
+                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)'
+                                  }}
+                                >
+                                  {/* Icon container with gradient */}
+                                  <div
+                                    className="relative w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+                                    style={{
+                                      background: `linear-gradient(135deg, ${type.bg || colors.primary[50]} 0%, ${type.iconBg || colors.primary[100]} 100%)`,
+                                      boxShadow: `0 4px 12px ${type.color}30`
+                                    }}
+                                  >
+                                    <Icon size={26} style={{ color: type.color }} />
+                                  </div>
+
+                                  {/* Text content */}
+                                  <h4 className="font-bold text-gray-800 text-lg mb-1.5 group-hover:text-indigo-600 transition-colors">
+                                    {type.label}
+                                  </h4>
+                                  <p className="text-xs text-gray-400 leading-relaxed">
+                                    {type.description}
+                                  </p>
+
+                                  {/* Arrow indicator */}
+                                  <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                                    <ChevronRight size={18} className="text-indigo-400" />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            )}
+
+            {/* Design Tab - Editor (Screenshot 9) */}
+            {/* Design Tab - Editor (Screenshot 9) */}
+            {selectedNudgeType && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: colors.background.page }}>
+                <style>
+                  {`
+                    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&display=swap');
+                  `}
+                </style>
+                {/* Editor Header */}
+
+
+                {/* Main Editor Area */}
+                <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
+                  {/* Left Panel - Layers */}
+                  <Panel defaultSize={20} minSize={15} maxSize={30} order={1} style={{ borderRight: `1px solid ${colors.gray[200]}`, backgroundColor: colors.background.card, display: 'flex', flexDirection: 'column' }}>
+                    {/* Determine root container ID based on nudge type */}
+                    {(() => {
+                      // Use displayLayers for context switching (interface or main campaign)
+                      const campaignLayers = displayLayers;
+
+                      // Find the root container layer based on nudge type
+                      const getRootContainerId = () => {
+                        const containerNames: Record<string, string> = {
+                          'bottomsheet': 'Bottom Sheet',
+                          'banner': 'Banner Container',
+                          'tooltip': 'Tooltip Container',
+                          'pip': 'PIP Container',
+                          'fullscreen': 'Fullscreen Layout',
+                          'fullpage': 'Fullscreen Layout',
+                        };
+
+                        // Use displayNudgeType for context switching
+                        const type = activeInterface ? displayNudgeType : (selectedNudgeType || currentCampaign?.nudgeType || '');
+                        const containerName = containerNames[type];
+
+                        if (!containerName) return null;
+
+                        const rootContainer = displayLayers?.find(
+                          (l: any) => l.type === 'container' && l.name === containerName
+                        );
+
+                        return rootContainer?.id || null;
+                      };
+
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      const rootContainerId = getRootContainerId();
+
+                      return (
+                        <>
+                          {/* Interfaces List - NEW */}
+                          <div style={{ padding: '12px', borderBottom: `1px solid ${colors.gray[200]}` }}>
+                            <InterfacesList
+                              mainCampaignName={currentCampaign?.name || 'Main Campaign'}
+                              mainCampaignType={currentCampaign?.nudgeType || 'modal'}
+                              interfaces={currentCampaign?.interfaces || []}
+                              activeInterfaceId={activeInterfaceId}
+                              onSelectInterface={(id) => setActiveInterface(id)}
+                              onAddInterface={() => setShowInterfaceSelector(true)}
+                              onDeleteInterface={(id) => {
+                                if (window.confirm('Delete this interface?')) {
+                                  deleteInterface(id);
+                                  toast.success('Interface deleted');
+                                }
+                              }}
+                              onRenameInterface={(id, newName) => {
+                                updateInterface(id, { name: newName });
+                              }}
+                              onReorderInterface={(startIndex, endIndex) => {
+                                reorderInterfaces(startIndex, endIndex);
+                              }}
+                              onDuplicateInterface={(id) => {
+                                duplicateInterface(id);
+                              }}
+                            />
+                          </div>
+
+                          <div style={{
+                            padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
+                            borderBottom: `1px solid ${theme.colors.border.default}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            position: 'relative'
+                          }}>
+                            <h4 style={{
+                              margin: 0,
+                              fontSize: theme.typography.fontSize.xs,
+                              fontWeight: theme.typography.fontWeight.semibold,
+                              color: theme.colors.text.secondary,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                            }}>
+                              Layers ({campaignLayers.length})
+                              {/* Debug info - hidden in prod or made subtle */}
+                            </h4>
+                            <div style={{ position: 'relative' }}>
+                              {/* Removed Global Add Button */}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing[1] }}>
+                            {campaignLayers
+                              .filter(layer => !layer.parent || layer.parent === 'null')
+                              .map(layer => renderLayerTreeItem(layer, 0))}
+                          </div>
+                          
+                          {/* Snap Threshold Setting */}
+                          <div style={{ padding: '8px 12px', borderTop: `1px solid ${colors.gray[200]}`, backgroundColor: '#F9FAFB' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <label style={{ fontSize: '11px', fontWeight: 600, color: colors.gray[700] }}>
+                                  Snap Sensitivity
+                                </label>
+                                <Info 
+                                  size={12} 
+                                  color={colors.gray[400]} 
+                                  style={{ cursor: 'help' }}
+                                  title="Adjust magnetic pull distance when dragging layers to align them"
+                                />
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="50"
+                                  value={snapThreshold}
+                                  onChange={(e) => {
+                                    let val = parseInt(e.target.value);
+                                    if (isNaN(val)) val = 1;
+                                    setSnapThreshold(Math.min(50, Math.max(1, val)));
+                                  }}
+                                  style={{ 
+                                    width: '36px', 
+                                    padding: '2px 4px', 
+                                    fontSize: '11px', 
+                                    border: `1px solid ${colors.gray[300]}`,
+                                    borderRadius: '4px',
+                                    textAlign: 'right'
+                                  }}
+                                />
+                                <span style={{ fontSize: '10px', color: colors.gray[500] }}>px</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </Panel>
+
+                  <PanelResizeHandle className="w-1 focus:outline-none transition-colors hover:bg-indigo-500/50 bg-transparent flex items-center justify-center -ml-0.5 z-50" />
+
+                  {/* Center Panel - Canvas (Enhanced with Device Selection) */}
+                  <Panel order={2} style={{ backgroundColor: colors.gray[100], display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+                    {/* Preview Toolbar */}
+                    <PreviewToolbar
+                      selectedDevice={selectedDevice}
+                      onDeviceChange={setSelectedDevice}
+                      zoom={previewZoom}
+                      onZoomChange={setPreviewZoom}
+                      onResetZoom={() => {
+                        // Recalculate optimal
+                        const device = DEVICE_PRESETS.find(d => d.id === selectedDevice);
+                        if (device) {
+                          const targetHeight = 650;
+                          const idealScale = targetHeight / device.height;
+                          const clampedScale = Math.min(Math.max(idealScale, 0.2), 1.0);
+                          setPreviewZoom(Math.round(clampedScale * 100) / 100);
+                        } else {
+                          setPreviewZoom(0.7);
+                        }
+                      }}
+                      showGrid={showGrid}
+                      onGridToggle={() => setShowGrid(!showGrid)}
+                      onScreenshot={() => {
+                        // TODO: Implement screenshot functionality
+                        toast.info('Screenshot feature coming soon!');
+                      }}
+                      isInteractive={isInteractive}
+                      onInteractToggle={() => {
+                        const newState = !isInteractive;
+                        setIsInteractive(newState);
+                        // Auto-open active interface if editing one
+                        if (newState && activeInterfaceId) {
+                          setPreviewInterfaceId(activeInterfaceId);
+                        }
+                      }}
+                      isPreview={isPreview}
+                      onPreviewToggle={togglePreview}
+                      // New Background Props
+                      backgrounds={pages.map(p => ({ id: p._id, name: p.name, url: p.imageUrl || '' }))}
+                      selectedBackground={previewBackgroundUrl}
+                      onBackgroundChange={setPreviewBackgroundUrl}
+                    />
+
+                    {/* Phone Preview */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflow: 'auto' }}>
+                      <PhonePreview
+                        device={DEVICE_PRESETS.find(d => d.id === selectedDevice) || DEVICE_PRESETS[0]}
+                        zoom={Number.isFinite(previewZoom) ? previewZoom : 0.7}
+                        showGrid={showGrid}
+                        backgroundUrl={previewBackgroundUrl || selectedPage?.imageUrl}
+                        pageContext={selectedPage}
+                      >
+                        {selectedRewardDetails ? (
+                          <GridElementProvider dataItem={selectedRewardDetails} index={0}>
+                            {renderCanvasPreview()}
+                          </GridElementProvider>
+                        ) : (
+                          renderCanvasPreview()
+                        )}
+                      </PhonePreview>
+                    </div>
+
+                    {selectedLayerObj && (
+                      <div style={{ position: 'absolute', bottom: '60px', right: '60px', padding: '6px 12px', backgroundColor: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: colors.text.secondary, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                        {selectedLayerObj.name}
+                      </div>
+                    )}
+                  </Panel>
+
+                  <PanelResizeHandle className="w-1 focus:outline-none transition-colors hover:bg-indigo-500/50 bg-transparent flex items-center justify-center -ml-0.5 z-50" />
+
+                  {/* Right Panel - Properties */}
+                  <Panel defaultSize={25} minSize={20} maxSize={40} order={3} collapsible={true} style={{ borderLeft: `1px solid ${colors.gray[200]}`, backgroundColor: colors.background.card, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ borderBottom: `1px solid ${colors.gray[200]}`, display: 'flex' }}>
+                      <button onClick={() => setPropertyTab('style')} style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', borderBottom: propertyTab === 'style' ? `2px solid ${colors.primary[500]}` : '2px solid transparent', fontSize: '13px', fontWeight: 500, cursor: 'pointer', color: propertyTab === 'style' ? colors.primary[500] : colors.text.secondary, transition: 'all 0.2s' }}>
+                        Style
+                      </button>
+                      <button onClick={() => setPropertyTab('actions')} style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', borderBottom: propertyTab === 'actions' ? `2px solid ${colors.primary[500]}` : '2px solid transparent', fontSize: '13px', fontWeight: 500, cursor: 'pointer', color: propertyTab === 'actions' ? colors.primary[500] : colors.text.secondary, transition: 'all 0.2s' }}>
+                        Actions
+                      </button>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                      {propertyTab === 'style' && renderLayerProperties()}
+                      {propertyTab === 'actions' && (
+                        <div style={{ padding: '0 4px' }}>
+                          {renderLayerActions()}
+                        </div>
+                      )}
+                    </div>
+                  </Panel>
+                </PanelGroup>
+              </div>
+            )}
+
+
+          </div>
+        </div>
+      </ErrorBoundary>
+
+      {/* Interface Type Selector Modal */}
+      <InterfaceTypeSelector
+        open={showInterfaceSelector}
+        onOpenChange={setShowInterfaceSelector}
+        onCreateInterface={(nudgeType, name) => {
+          const id = addInterface(nudgeType, name);
+          setActiveInterface(id);
+          toast.success(`Created interface: ${name}`);
+        }}
+        existingInterfaceCount={currentCampaign?.interfaces?.length || 0}
+      />
+      {/* Global Context Menu for Add Layer (Portal-like) */}
+      {layerAddMenuId && layerAddMenuPosition && (
+        <div style={{
+          position: 'fixed',
+          top: `${layerAddMenuPosition.top}px`,
+          left: `${layerAddMenuPosition.left}px`,
+          transform: layerAddMenuPosition.openUpward ? 'translateY(-100%)' : undefined,
+          backgroundColor: '#ffffff',
+          border: `1px solid ${colors.gray[200]}`,
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 9999,
+          minWidth: '160px',
+          overflow: 'hidden',
+          isolation: 'isolate'
+        }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ padding: '6px 12px', borderBottom: `1px solid ${colors.gray[200]}`, backgroundColor: colors.gray[50] }}>
+            <p style={{ margin: 0, fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: colors.text.secondary }}>Add Child</p>
+          </div>
+          {[
+            { id: 'input', label: 'Input Field', icon: Type },
+            { id: 'container', label: 'Container', icon: Layout },
+            { id: 'custom_html', label: 'Custom HTML', icon: Code },
+            { id: 'media', label: 'Image', icon: ImageIcon },
+            { id: 'lottie', label: 'Lottie Animation', icon: PlaySquare },
+            { id: 'rive', label: 'Rive Animation', icon: PlaySquare },
+            { id: 'text', label: 'Text', icon: Type },
+            { id: 'button', label: 'Button', icon: Square },
+            { id: 'copy_button', label: 'Copy Button', icon: Copy },
+            { id: 'scratch_foil', label: 'Scratch Foil', icon: Eraser },
+            { id: 'carousel', label: 'Carousel', icon: GalleryHorizontal },
+            { id: 'countdown', label: 'Countdown', icon: Timer },
+            { id: 'grid_container', label: 'Grid Container', icon: Grid3x3 },
+            { id: 'grid_item', label: 'Grid Element', icon: LayoutGrid },
+            { id: 'spinthewheel', label: 'Spin The Wheel', icon: Gamepad2 },
+          ].filter(item => {
+            // Find parent layer
+            const parentLayer = campaignLayers.find(l => l.id === layerAddMenuId);
+            
+            // If parent is Slide Container, ONLY show container (as Slide)
+            if (parentLayer?.type === 'container' && parentLayer.name === 'Slide Container') {
+              return item.id === 'container';
+            }
+
+            // If parent is carousel, ONLY show container (as Slide)
+            if (parentLayer?.type === 'carousel') {
+              return item.id === 'container';
+            }
+
+            // If parent is Fullscreen Layout (Full Page), show only relevant layers including spinthewheel
+            // Hide spinthewheel for all other parent types AND only show it if the campaign type is spinthewheel
+            if (item.id === 'spinthewheel') {
+              return currentCampaign?.type === 'spinthewheel' && parentLayer?.name === 'Fullscreen Layout';
+            }
+
+            // Grid Control Logic
+            if (parentLayer?.type === 'grid_container') {
+               const hasGridItem = campaignLayers.some(l => l.parent === parentLayer.id && l.type === 'grid_item');
+               return item.id === 'grid_item' && !hasGridItem;
+            }
+            if (item.id === 'grid_item') {
+               return false; // Already handled above if parent is grid_container, otherwise deny
+            }
+
+            return true;
+          }).map(item => {
+            // Determine Label
+            let label = item.label;
+            const parentLayer = campaignLayers.find(l => l.id === layerAddMenuId);
+            if (item.id === 'container' && parentLayer?.type === 'container' && parentLayer.name === 'Slide Container') {
+              label = 'Slide';
+            }
+            if (item.id === 'container' && parentLayer?.type === 'carousel') {
+              label = 'Slide';
+            }
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  let customName = undefined;
+                  const parentLayer = campaignLayers.find(l => l.id === layerAddMenuId);
+                  
+                  if (item.id === 'container' && parentLayer?.type === 'container' && parentLayer.name === 'Slide Container') {
+                    // Calculate next slide index
+                    const existingSlides = campaignLayers.filter(l => l.parent === parentLayer.id);
+                    customName = `Slide ${existingSlides.length + 1}`;
+                  } else if (item.id === 'container' && parentLayer?.type === 'carousel') {
+                    const existingSlides = campaignLayers.filter(l => l.parent === parentLayer.id);
+                    customName = `Slide ${existingSlides.length + 1}`;
+                  }
+                  
+                  handleAddLayer(item.id, layerAddMenuId, customName);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: 'none',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  color: colors.text.primary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.gray[50]}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <item.icon size={14} color={colors.gray[500]} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Global Context Menu (Renaming code etc) */}
+      {layerContextMenuId && layerContextMenuPosition && (
+        <div style={{
+          position: 'fixed',
+          top: `${layerContextMenuPosition.top}px`,
+          left: `${layerContextMenuPosition.left}px`,
+          transform: layerContextMenuPosition.openUpward ? 'translateY(-100%)' : undefined,
+          backgroundColor: 'white',
+          border: `1px solid ${colors.gray[200]}`,
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          zIndex: 9999,
+          minWidth: '140px',
+          overflow: 'hidden'
+        }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const layer = campaignLayers.find(l => l.id === layerContextMenuId);
+              if (layer) handleRenameStart(layer);
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Type size={14} /> Rename
+          </button>
+          <button
+            onClick={() => {
+              const layer = campaignLayers.find(l => l.id === layerContextMenuId);
+              if (layer) {
+                handleCopyLayer(layer.id);
+              }
+              setLayerContextMenuId(null);
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Copy size={14} /> Copy
+          </button>
+          {(() => {
+            const currentLayer = campaignLayers.find(l => l.id === layerContextMenuId);
+            if (currentLayer && (copiedLayerType === null || copiedLayerType === currentLayer.type)) {
+              return (
+                <button
+                  onClick={() => {
+                    pasteLayerFromClipboard(currentLayer.id);
+                    setLayerContextMenuId(null);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <ClipboardPaste size={14} /> Paste
+                </button>
+              );
+            }
+            return null;
+          })()}
+          <div className="border-t border-gray-100 my-1"></div>
+          <button
+            onClick={() => {
+              if (window.confirm('Delete this layer?')) {
+                deleteLayer(layerContextMenuId);
+                toast.success('Layer deleted');
+              }
+              setLayerContextMenuId(null);
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      )
+      }
+    </div >
+  );
+};

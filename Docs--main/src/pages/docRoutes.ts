@@ -1,0 +1,273 @@
+import { lazy } from "react";
+
+const DocApisPage = lazy(() => import("./docs/apis"));
+const DocApisApplyReferralPage = lazy(() => import("./docs/apis-apply-referral"));
+const DocApisBatchEventsPage = lazy(() => import("./docs/apis-batch-events"));
+const DocApisCampaignCsvReportPage = lazy(() => import("./docs/apis-campaign-csv-report"));
+const DocApisCreateCohortPage = lazy(() => import("./docs/apis-create-cohort"));
+const DocApisGetJwtTokenPage = lazy(() => import("./docs/apis-get-jwt-token"));
+const DocApisIdentifyUserPage = lazy(() => import("./docs/apis-identify-user"));
+const DocApisIdentifyUsersBatchPage = lazy(() => import("./docs/apis-identify-users-batch"));
+const DocApisNudgeApisPage = lazy(() => import("./docs/apis-nudge-apis"));
+const DocApisTrackEventPage = lazy(() => import("./docs/apis-track-event"));
+const DocApisUpdateCohortPage = lazy(() => import("./docs/apis-update-cohort"));
+const DocApisWebhookPage = lazy(() => import("./docs/apis-webhook"));
+const DocCallbackIntegrationPage = lazy(() => import("./docs/callback-integration"));
+const DocFaqPage = lazy(() => import("./docs/faq"));
+const DocGettingStartedPage = lazy(() => import("./docs/getting-started"));
+const DocGettingStartedAccountSetupPage = lazy(() => import("./docs/getting-started-account-setup"));
+const DocGettingStartedAccountSetupConfigurationPage = lazy(() => import("./docs/getting-started-account-setup-configuration"));
+const DocGettingStartedFindingYourApiKeysPage = lazy(() => import("./docs/getting-started-finding-your-api-keys"));
+const DocGettingStartedInviteATeamMemberPage = lazy(() => import("./docs/getting-started-invite-a-team-member"));
+const DocGettingStartedInviteTeamPage = lazy(() => import("./docs/getting-started-invite-team"));
+const DocGettingStartedRolesAndPermissionsPage = lazy(() => import("./docs/getting-started-roles-and-permissions"));
+const DocIntegrationsPage = lazy(() => import("./docs/integrations"));
+const DocIntegrationsCohortsSyncPage = lazy(() => import("./docs/integrations-cohorts-sync"));
+const DocIntegrationsCohortsSyncAmplitudePage = lazy(() => import("./docs/integrations-cohorts-sync-amplitude"));
+const DocIntegrationsCohortsSyncClevertapPage = lazy(() => import("./docs/integrations-cohorts-sync-clevertap"));
+const DocIntegrationsCohortsSyncCsvImportPage = lazy(() => import("./docs/integrations-cohorts-sync-csv-import"));
+const DocIntegrationsCohortsSyncMixpanelPage = lazy(() => import("./docs/integrations-cohorts-sync-mixpanel"));
+const DocIntegrationsGoogleTagManagerPage = lazy(() => import("./docs/integrations-google-tag-manager"));
+const DocIntegrationsGoogleTagManagerDataLayerPage = lazy(() => import("./docs/integrations-google-tag-manager-data-layer"));
+const DocIntegrationsGoogleTagManagerSetUpPage = lazy(() => import("./docs/integrations-google-tag-manager-set-up"));
+const DocIntegrationsShopifyIntegrationPage = lazy(() => import("./docs/integrations-shopify-integration"));
+const DocIntroductionPage = lazy(() => import("./docs/introduction"));
+const DocPlatformPage = lazy(() => import("./docs/platform"));
+const DocPlatformAndroidPage = lazy(() => import("./docs/platform-android"));
+const DocPlatformAndroidApiRegistryPage = lazy(() => import("./docs/platform-android-api-registry"));
+const DocPlatformAndroidCallbacksPage = lazy(() => import("./docs/platform-android-callbacks"));
+const DocPlatformAndroidCallbacksCorecallbacksPage = lazy(() => import("./docs/platform-android-callbacks-corecallbacks"));
+const DocPlatformAndroidCallbacksUicallbacksPage = lazy(() => import("./docs/platform-android-callbacks-uicallbacks"));
+const DocPlatformAndroidEmbeddingWidgetsPage = lazy(() => import("./docs/platform-android-embedding-widgets"));
+const DocPlatformAndroidEmbeddingWidgetsBannersPage = lazy(() => import("./docs/platform-android-embedding-widgets-banners"));
+const DocPlatformAndroidEmbeddingWidgetsStoriesPage = lazy(() => import("./docs/platform-android-embedding-widgets-stories"));
+const DocPlatformAndroidIdentifyingUsersAndroidPage = lazy(() => import("./docs/platform-android-identifying-users-android"));
+const DocPlatformAndroidInstallationAndroidPage = lazy(() => import("./docs/platform-android-installation-android"));
+const DocPlatformAndroidTrackingWidgetsPage = lazy(() => import("./docs/platform-android-tracking-widgets"));
+const DocPlatformAndroidTrackingWidgetsSendingScreenshotsPage = lazy(() => import("./docs/platform-android-tracking-widgets-sending-screenshots"));
+const DocPlatformAndroidTrackingWidgetsWidgetTrackingPage = lazy(() => import("./docs/platform-android-tracking-widgets-widget-tracking"));
+const DocPlatformAndroidTrackingEventsAndroidPage = lazy(() => import("./docs/platform-android-tracking-events-android"));
+const DocPlatformAndroidTrackingPagesPage = lazy(() => import("./docs/platform-android-tracking-pages"));
+const DocPlatformFlutterPage = lazy(() => import("./docs/platform-flutter"));
+const DocPlatformFlutterApiRegistryPage = lazy(() => import("./docs/platform-flutter-api-registry"));
+const DocPlatformFlutterCallbacksFlutterPage = lazy(() => import("./docs/platform-flutter-callbacks-flutter"));
+const DocPlatformFlutterEmbeddingWidgetsPage = lazy(() => import("./docs/platform-flutter-embedding-widgets"));
+const DocPlatformFlutterEmbeddingWidgetsBannersPage = lazy(() => import("./docs/platform-flutter-embedding-widgets-banners"));
+const DocPlatformFlutterEmbeddingWidgetsStoriesPage = lazy(() => import("./docs/platform-flutter-embedding-widgets-stories"));
+const DocPlatformFlutterIdentifyingUsersFlutterPage = lazy(() => import("./docs/platform-flutter-identifying-users-flutter"));
+const DocPlatformFlutterInstallationFlutterPage = lazy(() => import("./docs/platform-flutter-installation-flutter"));
+const DocPlatformFlutterTrackingWidgetsPage = lazy(() => import("./docs/platform-flutter-tracking-widgets"));
+const DocPlatformFlutterTrackingWidgetsTrackingPagesPage = lazy(() => import("./docs/platform-flutter-tracking-widgets-tracking-pages"));
+const DocPlatformFlutterTrackingWidgetsTrackingWidgetsPage = lazy(() => import("./docs/platform-flutter-tracking-widgets-tracking-widgets"));
+const DocPlatformFlutterTrackingEventsFlutterPage = lazy(() => import("./docs/platform-flutter-tracking-events-flutter"));
+const DocPlatformFlutterTrackingPagesFlutterPage = lazy(() => import("./docs/platform-flutter-tracking-pages-flutter"));
+const DocPlatformIosPage = lazy(() => import("./docs/platform-ios"));
+const DocPlatformIosApiRegistryPage = lazy(() => import("./docs/platform-ios-api-registry"));
+const DocPlatformIosCallbacksPage = lazy(() => import("./docs/platform-ios-callbacks"));
+const DocPlatformIosCallbacksCorecallbacksPage = lazy(() => import("./docs/platform-ios-callbacks-corecallbacks"));
+const DocPlatformIosCallbacksUicallbacksPage = lazy(() => import("./docs/platform-ios-callbacks-uicallbacks"));
+const DocPlatformIosEmbeddingWidgetsPage = lazy(() => import("./docs/platform-ios-embedding-widgets"));
+const DocPlatformIosEmbeddingWidgetsBannersPage = lazy(() => import("./docs/platform-ios-embedding-widgets-banners"));
+const DocPlatformIosEmbeddingWidgetsStoriesPage = lazy(() => import("./docs/platform-ios-embedding-widgets-stories"));
+const DocPlatformIosIdentifyingUsersIosPage = lazy(() => import("./docs/platform-ios-identifying-users-ios"));
+const DocPlatformIosInstallationIosPage = lazy(() => import("./docs/platform-ios-installation-ios"));
+const DocPlatformIosTrackingWidgetsPage = lazy(() => import("./docs/platform-ios-tracking-widgets"));
+const DocPlatformIosTrackingWidgetsSendingScreenshotsIosPage = lazy(() => import("./docs/platform-ios-tracking-widgets-sending-screenshots-ios"));
+const DocPlatformIosTrackingWidgetsTrackingWidgetsIosPage = lazy(() => import("./docs/platform-ios-tracking-widgets-tracking-widgets-ios"));
+const DocPlatformIosTrackingEventsIosPage = lazy(() => import("./docs/platform-ios-tracking-events-ios"));
+const DocPlatformIosTrackingPagesPage = lazy(() => import("./docs/platform-ios-tracking-pages"));
+const DocPlatformReactNativePage = lazy(() => import("./docs/platform-react-native"));
+const DocPlatformReactNativeApiRegistryPage = lazy(() => import("./docs/platform-react-native-api-registry"));
+const DocPlatformReactNativeCallbacksPage = lazy(() => import("./docs/platform-react-native-callbacks"));
+const DocPlatformReactNativeEmbeddingWidgetsPage = lazy(() => import("./docs/platform-react-native-embedding-widgets"));
+const DocPlatformReactNativeEmbeddingWidgetsBannersPage = lazy(() => import("./docs/platform-react-native-embedding-widgets-banners"));
+const DocPlatformReactNativeEmbeddingWidgetsStoriesPage = lazy(() => import("./docs/platform-react-native-embedding-widgets-stories"));
+const DocPlatformReactNativeIdentifyingUsersReactNativeSdkPage = lazy(() => import("./docs/platform-react-native-identifying-users-react-native-sdk"));
+const DocPlatformReactNativeInstallationReactNativePage = lazy(() => import("./docs/platform-react-native-installation-react-native"));
+const DocPlatformReactNativeTrackingWidgetsPage = lazy(() => import("./docs/platform-react-native-tracking-widgets"));
+const DocPlatformReactNativeTrackingWidgetsTrackingPagesPage = lazy(() => import("./docs/platform-react-native-tracking-widgets-tracking-pages"));
+const DocPlatformReactNativeTrackingWidgetsTrackingWidgetsPage = lazy(() => import("./docs/platform-react-native-tracking-widgets-tracking-widgets"));
+const DocPlatformReactNativeTrackingEventsReactNativePage = lazy(() => import("./docs/platform-react-native-tracking-events-react-native"));
+const DocPlatformWebPage = lazy(() => import("./docs/platform-web"));
+const DocPlatformWeb04aAddingBannersWebPage = lazy(() => import("./docs/platform-web-04a-adding-banners-web"));
+const DocPlatformWebAddingStoriesWebPage = lazy(() => import("./docs/platform-web-adding-stories-web"));
+const DocPlatformWebApiRegistryPage = lazy(() => import("./docs/platform-web-api-registry"));
+const DocPlatformWebCallbacksPage = lazy(() => import("./docs/platform-web-callbacks"));
+const DocPlatformWebCallbacksUicallbacksPage = lazy(() => import("./docs/platform-web-callbacks-uicallbacks"));
+const DocPlatformWebCdnIntegrationPage = lazy(() => import("./docs/platform-web-cdn-integration"));
+const DocPlatformWebIdentifyingUsersWebPage = lazy(() => import("./docs/platform-web-identifying-users-web"));
+const DocPlatformWebTrackingEventsWebPage = lazy(() => import("./docs/platform-web-tracking-events-web"));
+const DocProductPage = lazy(() => import("./docs/product"));
+const DocProductCampaignsPage = lazy(() => import("./docs/product-campaigns"));
+const DocProductCampaignsChallengesPage = lazy(() => import("./docs/product-campaigns-challenges"));
+const DocProductCampaignsDisplayRulesPage = lazy(() => import("./docs/product-campaigns-display-rules"));
+const DocProductCampaignsInAppMessagesPage = lazy(() => import("./docs/product-campaigns-in-app-messages"));
+const DocProductCampaignsInAppNudgesPage = lazy(() => import("./docs/product-campaigns-in-app-nudges"));
+const DocProductCampaignsReferralsPage = lazy(() => import("./docs/product-campaigns-referrals"));
+const DocProductCampaignsStoriesPage = lazy(() => import("./docs/product-campaigns-stories"));
+const DocProductCampaignsStreaksPage = lazy(() => import("./docs/product-campaigns-streaks"));
+const DocProductCampaignsSurveysPage = lazy(() => import("./docs/product-campaigns-surveys"));
+const DocProductCohortsPage = lazy(() => import("./docs/product-cohorts"));
+const DocProductCohortsDynamicPage = lazy(() => import("./docs/product-cohorts-dynamic"));
+const DocProductCohortsImportPage = lazy(() => import("./docs/product-cohorts-import"));
+const DocProductCohortsStaticPage = lazy(() => import("./docs/product-cohorts-static"));
+const DocProductEventsSourcePage = lazy(() => import("./docs/product-events-source"));
+const DocProductEventsPage = lazy(() => import("./docs/product-events"));
+const DocProductFlowsPage = lazy(() => import("./docs/product-flows"));
+const DocProductRewardsPage = lazy(() => import("./docs/product-rewards"));
+const DocProductRewardsRewardPage = lazy(() => import("./docs/product-rewards-reward"));
+const DocProductRewardsRewardDeliveryPage = lazy(() => import("./docs/product-rewards-reward-delivery"));
+const DocProductUsersPage = lazy(() => import("./docs/product-users"));
+const DocProductVisualbuilderPage = lazy(() => import("./docs/product-visualbuilder"));
+const DocProductVisualbuilderActionsPage = lazy(() => import("./docs/product-visualbuilder-actions"));
+const DocProductVisualbuilderInterfacesSourcePage = lazy(() => import("./docs/product-visualbuilder-interfaces-source"));
+const DocProductVisualbuilderInterfacesPage = lazy(() => import("./docs/product-visualbuilder-interfaces"));
+const DocProductVisualbuilderVariablesPage = lazy(() => import("./docs/product-visualbuilder-variables"));
+const DocProductVisualbuilderWidgetsPage = lazy(() => import("./docs/product-visualbuilder-widgets"));
+const DocQuickstartPage = lazy(() => import("./docs/quickstart"));
+const DocQuickstartBannerIntegrationPage = lazy(() => import("./docs/quickstart-banner-integration"));
+const DocQuickstartBasicIntegrationPage = lazy(() => import("./docs/quickstart-basic-integration"));
+const DocQuickstartInstallationPage = lazy(() => import("./docs/quickstart-installation"));
+const DocQuickstartStoriesIntegrationPage = lazy(() => import("./docs/quickstart-stories-integration"));
+const DocReleasenotesPage = lazy(() => import("./docs/releasenotes"));
+const DocSecurityPage = lazy(() => import("./docs/security"));
+const DocSecurityAuthenticationPage = lazy(() => import("./docs/security-authentication"));
+const DocSecurityDataPrivacyPage = lazy(() => import("./docs/security-data-privacy"));
+
+export interface DocRoute { slug: string; component: React.LazyExoticComponent<React.ComponentType>; }
+
+export const docRoutes: DocRoute[] = [
+  { slug: "/apis", component: DocApisPage },
+  { slug: "/apis/apply-referral", component: DocApisApplyReferralPage },
+  { slug: "/apis/batch-events", component: DocApisBatchEventsPage },
+  { slug: "/apis/campaign-csv-report", component: DocApisCampaignCsvReportPage },
+  { slug: "/apis/create-cohort", component: DocApisCreateCohortPage },
+  { slug: "/apis/get-jwt-token", component: DocApisGetJwtTokenPage },
+  { slug: "/apis/identify-user", component: DocApisIdentifyUserPage },
+  { slug: "/apis/identify-users-batch", component: DocApisIdentifyUsersBatchPage },
+  { slug: "/apis/nudge-apis", component: DocApisNudgeApisPage },
+  { slug: "/apis/track-event", component: DocApisTrackEventPage },
+  { slug: "/apis/update-cohort", component: DocApisUpdateCohortPage },
+  { slug: "/apis/webhook", component: DocApisWebhookPage },
+  { slug: "/callback-integration", component: DocCallbackIntegrationPage },
+  { slug: "/faq", component: DocFaqPage },
+  { slug: "/getting-started", component: DocGettingStartedPage },
+  { slug: "/getting-started/account-setup", component: DocGettingStartedAccountSetupPage },
+  { slug: "/getting-started/account-setup-configuration", component: DocGettingStartedAccountSetupConfigurationPage },
+  { slug: "/getting-started/finding-your-api-keys", component: DocGettingStartedFindingYourApiKeysPage },
+  { slug: "/getting-started/invite-a-team-member", component: DocGettingStartedInviteATeamMemberPage },
+  { slug: "/getting-started/invite-team", component: DocGettingStartedInviteTeamPage },
+  { slug: "/getting-started/Roles-and-permissions", component: DocGettingStartedRolesAndPermissionsPage },
+  { slug: "/integrations", component: DocIntegrationsPage },
+  { slug: "/integrations/cohorts-sync", component: DocIntegrationsCohortsSyncPage },
+  { slug: "/integrations/cohorts-sync/amplitude", component: DocIntegrationsCohortsSyncAmplitudePage },
+  { slug: "/integrations/cohorts-sync/clevertap", component: DocIntegrationsCohortsSyncClevertapPage },
+  { slug: "/integrations/cohorts-sync/csv-import", component: DocIntegrationsCohortsSyncCsvImportPage },
+  { slug: "/integrations/cohorts-sync/mixpanel", component: DocIntegrationsCohortsSyncMixpanelPage },
+  { slug: "/integrations/google-tag-manager", component: DocIntegrationsGoogleTagManagerPage },
+  { slug: "/integrations/google-tag-manager/data-layer", component: DocIntegrationsGoogleTagManagerDataLayerPage },
+  { slug: "/integrations/google-tag-manager/set-up", component: DocIntegrationsGoogleTagManagerSetUpPage },
+  { slug: "/integrations/shopify.integration", component: DocIntegrationsShopifyIntegrationPage },
+  { slug: "/introduction", component: DocIntroductionPage },
+  { slug: "/platform", component: DocPlatformPage },
+  { slug: "/platform/android", component: DocPlatformAndroidPage },
+  { slug: "/platform/android/api-registry", component: DocPlatformAndroidApiRegistryPage },
+  { slug: "/platform/android/Callbacks", component: DocPlatformAndroidCallbacksPage },
+  { slug: "/platform/android/Callbacks/corecallbacks", component: DocPlatformAndroidCallbacksCorecallbacksPage },
+  { slug: "/platform/android/Callbacks/uicallbacks", component: DocPlatformAndroidCallbacksUicallbacksPage },
+  { slug: "/platform/android/Embedding%20Widgets", component: DocPlatformAndroidEmbeddingWidgetsPage },
+  { slug: "/platform/android/Embedding%20Widgets/Banners", component: DocPlatformAndroidEmbeddingWidgetsBannersPage },
+  { slug: "/platform/android/Embedding%20Widgets/Stories", component: DocPlatformAndroidEmbeddingWidgetsStoriesPage },
+  { slug: "/platform/android/identifying-users-android", component: DocPlatformAndroidIdentifyingUsersAndroidPage },
+  { slug: "/platform/android/installation-android", component: DocPlatformAndroidInstallationAndroidPage },
+  { slug: "/platform/android/Tracking%20Widgets", component: DocPlatformAndroidTrackingWidgetsPage },
+  { slug: "/platform/android/Tracking%20Widgets/sending-screenshots", component: DocPlatformAndroidTrackingWidgetsSendingScreenshotsPage },
+  { slug: "/platform/android/Tracking%20Widgets/widget-tracking", component: DocPlatformAndroidTrackingWidgetsWidgetTrackingPage },
+  { slug: "/platform/android/tracking-events-android", component: DocPlatformAndroidTrackingEventsAndroidPage },
+  { slug: "/platform/android/tracking-pages", component: DocPlatformAndroidTrackingPagesPage },
+  { slug: "/platform/flutter", component: DocPlatformFlutterPage },
+  { slug: "/platform/flutter/api-registry", component: DocPlatformFlutterApiRegistryPage },
+  { slug: "/platform/flutter/callbacks-flutter", component: DocPlatformFlutterCallbacksFlutterPage },
+  { slug: "/platform/flutter/Embedding%20Widgets", component: DocPlatformFlutterEmbeddingWidgetsPage },
+  { slug: "/platform/flutter/Embedding%20Widgets/banners", component: DocPlatformFlutterEmbeddingWidgetsBannersPage },
+  { slug: "/platform/flutter/Embedding%20Widgets/stories", component: DocPlatformFlutterEmbeddingWidgetsStoriesPage },
+  { slug: "/platform/flutter/identifying-users-flutter", component: DocPlatformFlutterIdentifyingUsersFlutterPage },
+  { slug: "/platform/flutter/installation-flutter", component: DocPlatformFlutterInstallationFlutterPage },
+  { slug: "/platform/flutter/Tracking%20Widgets", component: DocPlatformFlutterTrackingWidgetsPage },
+  { slug: "/platform/flutter/Tracking%20Widgets/tracking-pages", component: DocPlatformFlutterTrackingWidgetsTrackingPagesPage },
+  { slug: "/platform/flutter/Tracking%20Widgets/tracking-widgets", component: DocPlatformFlutterTrackingWidgetsTrackingWidgetsPage },
+  { slug: "/platform/flutter/tracking-events-flutter", component: DocPlatformFlutterTrackingEventsFlutterPage },
+  { slug: "/platform/flutter/tracking-pages-flutter", component: DocPlatformFlutterTrackingPagesFlutterPage },
+  { slug: "/platform/iOS", component: DocPlatformIosPage },
+  { slug: "/platform/iOS/api-registry", component: DocPlatformIosApiRegistryPage },
+  { slug: "/platform/iOS/Callbacks", component: DocPlatformIosCallbacksPage },
+  { slug: "/platform/iOS/Callbacks/corecallbacks", component: DocPlatformIosCallbacksCorecallbacksPage },
+  { slug: "/platform/iOS/Callbacks/uicallbacks", component: DocPlatformIosCallbacksUicallbacksPage },
+  { slug: "/platform/iOS/Embedding%20Widgets", component: DocPlatformIosEmbeddingWidgetsPage },
+  { slug: "/platform/iOS/Embedding%20Widgets/Banners", component: DocPlatformIosEmbeddingWidgetsBannersPage },
+  { slug: "/platform/iOS/Embedding%20Widgets/Stories", component: DocPlatformIosEmbeddingWidgetsStoriesPage },
+  { slug: "/platform/iOS/identifying-users-ios", component: DocPlatformIosIdentifyingUsersIosPage },
+  { slug: "/platform/iOS/installation-ios", component: DocPlatformIosInstallationIosPage },
+  { slug: "/platform/iOS/Tracking%20Widgets", component: DocPlatformIosTrackingWidgetsPage },
+  { slug: "/platform/iOS/Tracking%20Widgets/sending-screenshots-ios", component: DocPlatformIosTrackingWidgetsSendingScreenshotsIosPage },
+  { slug: "/platform/iOS/Tracking%20Widgets/tracking-widgets-ios", component: DocPlatformIosTrackingWidgetsTrackingWidgetsIosPage },
+  { slug: "/platform/iOS/tracking-events-ios", component: DocPlatformIosTrackingEventsIosPage },
+  { slug: "/platform/iOS/tracking-pages", component: DocPlatformIosTrackingPagesPage },
+  { slug: "/platform/react-native", component: DocPlatformReactNativePage },
+  { slug: "/platform/react-native/api-registry", component: DocPlatformReactNativeApiRegistryPage },
+  { slug: "/platform/react-native/callbacks", component: DocPlatformReactNativeCallbacksPage },
+  { slug: "/platform/react-native/Embedding%20Widgets", component: DocPlatformReactNativeEmbeddingWidgetsPage },
+  { slug: "/platform/react-native/Embedding%20Widgets/banners", component: DocPlatformReactNativeEmbeddingWidgetsBannersPage },
+  { slug: "/platform/react-native/Embedding%20Widgets/stories", component: DocPlatformReactNativeEmbeddingWidgetsStoriesPage },
+  { slug: "/platform/react-native/identifying-users-react-native-sdk", component: DocPlatformReactNativeIdentifyingUsersReactNativeSdkPage },
+  { slug: "/platform/react-native/installation-react-native", component: DocPlatformReactNativeInstallationReactNativePage },
+  { slug: "/platform/react-native/Tracking%20Widgets", component: DocPlatformReactNativeTrackingWidgetsPage },
+  { slug: "/platform/react-native/Tracking%20Widgets/tracking-pages", component: DocPlatformReactNativeTrackingWidgetsTrackingPagesPage },
+  { slug: "/platform/react-native/Tracking%20Widgets/tracking-widgets", component: DocPlatformReactNativeTrackingWidgetsTrackingWidgetsPage },
+  { slug: "/platform/react-native/tracking-events-react-native", component: DocPlatformReactNativeTrackingEventsReactNativePage },
+  { slug: "/platform/web", component: DocPlatformWebPage },
+  { slug: "/platform/web/04a-adding-banners-web", component: DocPlatformWeb04aAddingBannersWebPage },
+  { slug: "/platform/web/adding-stories-web", component: DocPlatformWebAddingStoriesWebPage },
+  { slug: "/platform/web/api-registry", component: DocPlatformWebApiRegistryPage },
+  { slug: "/platform/web/Callbacks", component: DocPlatformWebCallbacksPage },
+  { slug: "/platform/web/Callbacks/uicallbacks", component: DocPlatformWebCallbacksUicallbacksPage },
+  { slug: "/platform/web/cdn-integration", component: DocPlatformWebCdnIntegrationPage },
+  { slug: "/platform/web/identifying-users-web", component: DocPlatformWebIdentifyingUsersWebPage },
+  { slug: "/platform/web/tracking-events-web", component: DocPlatformWebTrackingEventsWebPage },
+  { slug: "/product", component: DocProductPage },
+  { slug: "/product/Campaigns", component: DocProductCampaignsPage },
+  { slug: "/product/Campaigns/challenges", component: DocProductCampaignsChallengesPage },
+  { slug: "/product/Campaigns/display-rules", component: DocProductCampaignsDisplayRulesPage },
+  { slug: "/product/Campaigns/in-app-messages", component: DocProductCampaignsInAppMessagesPage },
+  { slug: "/product/Campaigns/in-app-nudges", component: DocProductCampaignsInAppNudgesPage },
+  { slug: "/product/Campaigns/referrals", component: DocProductCampaignsReferralsPage },
+  { slug: "/product/Campaigns/stories", component: DocProductCampaignsStoriesPage },
+  { slug: "/product/Campaigns/streaks", component: DocProductCampaignsStreaksPage },
+  { slug: "/product/Campaigns/surveys", component: DocProductCampaignsSurveysPage },
+  { slug: "/product/Cohorts", component: DocProductCohortsPage },
+  { slug: "/product/Cohorts/dynamic", component: DocProductCohortsDynamicPage },
+  { slug: "/product/Cohorts/import", component: DocProductCohortsImportPage },
+  { slug: "/product/Cohorts/static", component: DocProductCohortsStaticPage },
+  { slug: "/product/Events", component: DocProductEventsSourcePage },
+  { slug: "/product/events", component: DocProductEventsPage },
+  { slug: "/product/Flows", component: DocProductFlowsPage },
+  { slug: "/product/rewards", component: DocProductRewardsPage },
+  { slug: "/product/rewards/reward", component: DocProductRewardsRewardPage },
+  { slug: "/product/rewards/reward-delivery", component: DocProductRewardsRewardDeliveryPage },
+  { slug: "/product/Users", component: DocProductUsersPage },
+  { slug: "/product/VisualBuilder", component: DocProductVisualbuilderPage },
+  { slug: "/product/VisualBuilder/actions", component: DocProductVisualbuilderActionsPage },
+  { slug: "/product/VisualBuilder/Interfaces", component: DocProductVisualbuilderInterfacesSourcePage },
+  { slug: "/product/VisualBuilder/interfaces", component: DocProductVisualbuilderInterfacesPage },
+  { slug: "/product/VisualBuilder/variables", component: DocProductVisualbuilderVariablesPage },
+  { slug: "/product/VisualBuilder/widgets", component: DocProductVisualbuilderWidgetsPage },
+  { slug: "/quickstart", component: DocQuickstartPage },
+  { slug: "/quickstart/banner-integration", component: DocQuickstartBannerIntegrationPage },
+  { slug: "/quickstart/basic-integration", component: DocQuickstartBasicIntegrationPage },
+  { slug: "/quickstart/installation", component: DocQuickstartInstallationPage },
+  { slug: "/quickstart/stories-integration", component: DocQuickstartStoriesIntegrationPage },
+  { slug: "/releasenotes", component: DocReleasenotesPage },
+  { slug: "/security", component: DocSecurityPage },
+  { slug: "/security/authentication", component: DocSecurityAuthenticationPage },
+  { slug: "/security/data-privacy", component: DocSecurityDataPrivacyPage },
+];

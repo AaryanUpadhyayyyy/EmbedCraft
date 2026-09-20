@@ -1,0 +1,29 @@
+# llmifierrc.yaml for Embed_Backend
+projectType: "js"
+mode: "full"
+
+include:
+  - "package.json"
+  - "index.js"
+  - "src/**/*.js"        # Saara logic yahan cover hoga
+  - "README.md"
+
+exclude:
+  - "node_modules/**"
+  - "data/**"           # WiredTiger logs aur DB files hata di
+  - "**.log"
+  - "**.txt"
+  - "package-lock.json"
+  - "uploads/**"        # Binary images hata di tokens bachane ke liye
+  - ".git/**"
+
+fileOrdering:
+  groups:
+    - name: "Config"
+      patterns: ["package.json", "index.js"]
+    - name: "Models"     # AI ko pehle Schema samajhna chahiye
+      patterns: ["src/models/**"]
+    - name: "Controllers"
+      patterns: ["src/controllers/**"]
+    - name: "Routes"
+      patterns: ["src/routes/**"]

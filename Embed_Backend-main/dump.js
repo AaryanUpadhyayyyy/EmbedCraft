@@ -1,0 +1,1 @@
+require('mongoose').connect('mongodb+srv://admin:Sinister%40123@embedcraft.z923ska.mongodb.net/?appName=EmbedCraft').then(() => require('./src/models/Campaign').findOne({title: 'Reward repo ( fullapge)'}).lean().then(c => { console.log(JSON.stringify(c, null, 2)); process.exit(0); }))

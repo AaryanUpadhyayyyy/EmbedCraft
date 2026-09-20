@@ -1,0 +1,800 @@
+{
+  "/apis/apply-referral": {
+    "slug": "/apis/apply-referral",
+    "title": "Apply referral",
+    "description": "Apply referrals for a user via your backend system.",
+    "blocks": []
+  },
+  "/apis/batch-events": {
+    "slug": "/apis/batch-events",
+    "title": "Batch events",
+    "description": "Ingest a batch of events in a single request for efficiency.",
+    "blocks": []
+  },
+  "/apis/campaign-csv-report": {
+    "slug": "/apis/campaign-csv-report",
+    "title": "Campaign CSV Report",
+    "description": "Retrieve the CSV report file for users associated with a specific campaign.",
+    "blocks": []
+  },
+  "/apis/create-cohort": {
+    "slug": "/apis/create-cohort",
+    "title": "Create cohort",
+    "description": "Create a new external cohort.",
+    "blocks": []
+  },
+  "/apis/get-jwt-token": {
+    "slug": "/apis/get-jwt-token",
+    "title": "Get JWT token",
+    "description": "Retrieve a signed Bearer token (JWT) for client authentication.",
+    "blocks": []
+  },
+  "/apis/identify-user": {
+    "slug": "/apis/identify-user",
+    "title": "Identify user",
+    "description": "Identify or update users from your backend and associate custom properties.",
+    "blocks": []
+  },
+  "/apis/identify-users-batch": {
+    "slug": "/apis/identify-users-batch",
+    "title": "Identify users (batch)",
+    "description": "Identify or update **multiple** users from your backend in a single call and associate custom properties to each user.",
+    "blocks": []
+  },
+  "/apis/nudge-apis": {
+    "slug": "/apis/nudge-apis",
+    "title": "EmbedCraft APIs",
+    "description": "Use EmbedCraft APIs to identify users, track events, manage cohorts, export reports, and receive webhooks.",
+    "blocks": []
+  },
+  "/apis/track-event": {
+    "slug": "/apis/track-event",
+    "title": "Track event",
+    "description": "Track events and event properties from your backend.",
+    "blocks": []
+  },
+  "/apis/update-cohort": {
+    "slug": "/apis/update-cohort",
+    "title": "Update cohort",
+    "description": "Update an existing static cohort by adding or removing user IDs.",
+    "blocks": []
+  },
+  "/apis/webhook": {
+    "slug": "/apis/webhook",
+    "title": "Webhook",
+    "description": "Webhook events sent by EmbedCraft to notify your application.",
+    "blocks": []
+  },
+  "/apis": {
+    "slug": "/apis",
+    "title": "API Reference",
+    "description": "&lt;SectionLanding",
+    "blocks": []
+  },
+  "/callback-integration": {
+    "slug": "/callback-integration",
+    "title": "Callback Integration",
+    "description": "This will Guide you through the basic integration of EmbedCraft SDK&#39;s Callback with various platform",
+    "blocks": []
+  },
+  "/faq": {
+    "slug": "/faq",
+    "title": "FAQ",
+    "description": "Answers to the most common questions about EmbedCraft.",
+    "blocks": []
+  },
+  "/getting-started/account-setup-configuration": {
+    "slug": "/getting-started/account-setup-configuration",
+    "title": "Account Setup & Configuration",
+    "description": "Configure your workspace, environments and defaults after signing up.",
+    "blocks": []
+  },
+  "/getting-started/account-setup": {
+    "slug": "/getting-started/account-setup",
+    "title": "Account Setup: Getting Started with EmbedCraft",
+    "description": "Overview",
+    "blocks": []
+  },
+  "/getting-started/finding-your-api-keys": {
+    "slug": "/getting-started/finding-your-api-keys",
+    "title": "Finding and Managing Your API Keys",
+    "description": "EmbedCraft utilizes two distinct types of API keys\\u2014a Public Client Key and Private Secret Keys\\u2014to securely enable front-end tracking and back-end integrations. Understanding their intended use is critical for security and functionality.",
+    "blocks": []
+  },
+  "/getting-started/invite-a-team-member": {
+    "slug": "/getting-started/invite-a-team-member",
+    "title": "Invite and Manage Team Members",
+    "description": "Invite and Manage Team Members for EmbedCraft.",
+    "blocks": []
+  },
+  "/getting-started/invite-team": {
+    "slug": "/getting-started/invite-team",
+    "title": "Invite and Manage Team Members",
+    "description": "Invite teammates and manage permissions inside your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/getting-started/Roles-and-permissions": {
+    "slug": "/getting-started/Roles-and-permissions",
+    "title": "User Access Roles and Permissions",
+    "description": "This document outlines the required access level (role) for every major action within the system&#39;s core modules, with terminology updated to use &quot;view&quot; for retrieval actions and &quot;Campaigns&quot; for tasks/journeys.",
+    "blocks": []
+  },
+  "/getting-started": {
+    "slug": "/getting-started",
+    "title": "Getting Started",
+    "description": "Start here to prepare your workspace, configure access, collect API keys, and invite the people who will manage EmbedCraft.",
+    "blocks": []
+  },
+  "/integrations/cohorts-sync/amplitude": {
+    "slug": "/integrations/cohorts-sync/amplitude",
+    "title": "Amplitude",
+    "description": "Sync cohorts from Amplitude Data to EmbedCraft.",
+    "blocks": []
+  },
+  "/integrations/cohorts-sync/clevertap": {
+    "slug": "/integrations/cohorts-sync/clevertap",
+    "title": "CleverTap",
+    "description": "Sync cohorts from CleverTap to EmbedCraft.",
+    "blocks": []
+  },
+  "/integrations/cohorts-sync/csv-import": {
+    "slug": "/integrations/cohorts-sync/csv-import",
+    "title": "CSV Import",
+    "description": "Import cohorts to EmbedCraft using CSV files.",
+    "blocks": []
+  },
+  "/integrations/cohorts-sync/mixpanel": {
+    "slug": "/integrations/cohorts-sync/mixpanel",
+    "title": "Mixpanel",
+    "description": "Sync cohorts from Mixpanel to EmbedCraft.",
+    "blocks": []
+  },
+  "/integrations/cohorts-sync": {
+    "slug": "/integrations/cohorts-sync",
+    "title": "Cohorts Sync",
+    "description": "Sync cohorts from your analytics platforms directly into EmbedCraft to create targeted experiences and campaigns.",
+    "blocks": []
+  },
+  "/integrations/google-tag-manager/data-layer": {
+    "slug": "/integrations/google-tag-manager/data-layer",
+    "title": "Data Layer",
+    "description": "The Data Layer is a JavaScript object used by Google Tag Manager (GTM) to pass information from your website to GTM tags. It allows for dynamic data (such as user properties or event details) to be captured and utilized in the EmbedCraft SDK, ensuring more flexible and personalized tracking.",
+    "blocks": []
+  },
+  "/integrations/google-tag-manager/set-up": {
+    "slug": "/integrations/google-tag-manager/set-up",
+    "title": "Set up",
+    "description": "This guide will help you integrate the EmbedCraft SDK using Google Tag Manager (GTM) to track user activities and events. By following these steps, you will be able to initialize the EmbedCraft SDK, identify users, and track events across your website using GTM.",
+    "blocks": []
+  },
+  "/integrations/google-tag-manager": {
+    "slug": "/integrations/google-tag-manager",
+    "title": "Google Tag Manager",
+    "description": "Use Google Tag Manager to load EmbedCraft and forward data layer events without changing every page in your application.",
+    "blocks": []
+  },
+  "/integrations/shopify.integration": {
+    "slug": "/integrations/shopify.integration",
+    "title": "Shopify Integration",
+    "description": "Set up EmbedCraft on your Shopify store and track events using Customer Events.",
+    "blocks": []
+  },
+  "/integrations": {
+    "slug": "/integrations",
+    "title": "Integrations",
+    "description": "&lt;SectionLanding",
+    "blocks": []
+  },
+  "/introduction": {
+    "slug": "/introduction",
+    "title": "Introduction",
+    "description": "Welcome to EmbedCraft — a no-code platform for in-app campaigns, nudges, surveys, and journeys.",
+    "blocks": []
+  },
+  "/platform/android/api-registry": {
+    "slug": "/platform/android/api-registry",
+    "title": "API Registry",
+    "description": "Configure api registry for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Callbacks/corecallbacks": {
+    "slug": "/platform/android/Callbacks/corecallbacks",
+    "title": "Android Core Callbacks",
+    "description": "Configure android core callbacks for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Callbacks/uicallbacks": {
+    "slug": "/platform/android/Callbacks/uicallbacks",
+    "title": "Android UI Callbacks",
+    "description": "Configure android ui callbacks for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Callbacks": {
+    "slug": "/platform/android/Callbacks",
+    "title": "Android Callbacks",
+    "description": "This section collects the Android SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/android/Embedding%20Widgets/Banners": {
+    "slug": "/platform/android/Embedding%20Widgets/Banners",
+    "title": "Android Banners",
+    "description": "Configure android banners for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Embedding%20Widgets/Stories": {
+    "slug": "/platform/android/Embedding%20Widgets/Stories",
+    "title": "Android Stories",
+    "description": "Configure android stories for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Embedding%20Widgets": {
+    "slug": "/platform/android/Embedding%20Widgets",
+    "title": "Android Embedding Widgets",
+    "description": "This section collects the Android SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/android/identifying-users-android": {
+    "slug": "/platform/android/identifying-users-android",
+    "title": "Identifying Users",
+    "description": "Configure identifying users for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/installation-android": {
+    "slug": "/platform/android/installation-android",
+    "title": "Installation",
+    "description": "Configure installation for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/tracking-events-android": {
+    "slug": "/platform/android/tracking-events-android",
+    "title": "Tracking Events",
+    "description": "Configure tracking events for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/tracking-pages": {
+    "slug": "/platform/android/tracking-pages",
+    "title": "Tracking Pages",
+    "description": "Configure tracking pages for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Tracking%20Widgets/sending-screenshots": {
+    "slug": "/platform/android/Tracking%20Widgets/sending-screenshots",
+    "title": "Sending Screenshots on Android",
+    "description": "Configure sending screenshots on android for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Tracking%20Widgets/widget-tracking": {
+    "slug": "/platform/android/Tracking%20Widgets/widget-tracking",
+    "title": "Android Widget Tracking",
+    "description": "Configure android widget tracking for the Android SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/android/Tracking%20Widgets": {
+    "slug": "/platform/android/Tracking%20Widgets",
+    "title": "Android Tracking Widgets",
+    "description": "This section collects the Android SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/android": {
+    "slug": "/platform/android",
+    "title": "Android SDK",
+    "description": "This section collects the Android SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/flutter/api-registry": {
+    "slug": "/platform/flutter/api-registry",
+    "title": "API Registry",
+    "description": "Configure api registry for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/callbacks-flutter": {
+    "slug": "/platform/flutter/callbacks-flutter",
+    "title": "Flutter Callbacks",
+    "description": "Configure flutter callbacks for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Embedding%20Widgets/banners": {
+    "slug": "/platform/flutter/Embedding%20Widgets/banners",
+    "title": "Flutter Banners",
+    "description": "Configure flutter banners for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Embedding%20Widgets/stories": {
+    "slug": "/platform/flutter/Embedding%20Widgets/stories",
+    "title": "Flutter Stories",
+    "description": "Configure flutter stories for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Embedding%20Widgets": {
+    "slug": "/platform/flutter/Embedding%20Widgets",
+    "title": "Flutter Embedding Widgets",
+    "description": "This section collects the Flutter SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/flutter/identifying-users-flutter": {
+    "slug": "/platform/flutter/identifying-users-flutter",
+    "title": "Identifying Users",
+    "description": "Configure identifying users for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/installation-flutter": {
+    "slug": "/platform/flutter/installation-flutter",
+    "title": "Installation",
+    "description": "Configure installation for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/tracking-events-flutter": {
+    "slug": "/platform/flutter/tracking-events-flutter",
+    "title": "Tracking Events",
+    "description": "What are Events?",
+    "blocks": []
+  },
+  "/platform/flutter/tracking-pages-flutter": {
+    "slug": "/platform/flutter/tracking-pages-flutter",
+    "title": "Flutter Tracking Pages",
+    "description": "Configure flutter tracking pages for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Tracking%20Widgets/tracking-pages": {
+    "slug": "/platform/flutter/Tracking%20Widgets/tracking-pages",
+    "title": "Flutter Tracking Pages",
+    "description": "Configure flutter tracking pages for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Tracking%20Widgets/tracking-widgets": {
+    "slug": "/platform/flutter/Tracking%20Widgets/tracking-widgets",
+    "title": "Flutter Tracking Widgets",
+    "description": "Configure flutter tracking widgets for the Flutter SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/flutter/Tracking%20Widgets": {
+    "slug": "/platform/flutter/Tracking%20Widgets",
+    "title": "Flutter Tracking Widgets",
+    "description": "This section collects the Flutter SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/flutter": {
+    "slug": "/platform/flutter",
+    "title": "Flutter SDK",
+    "description": "This section collects the Flutter SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/iOS/api-registry": {
+    "slug": "/platform/iOS/api-registry",
+    "title": "API Registry",
+    "description": "Configure api registry for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Callbacks/corecallbacks": {
+    "slug": "/platform/iOS/Callbacks/corecallbacks",
+    "title": "iOS Core Callbacks",
+    "description": "Configure ios core callbacks for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Callbacks/uicallbacks": {
+    "slug": "/platform/iOS/Callbacks/uicallbacks",
+    "title": "iOS UI Callbacks",
+    "description": "Configure ios ui callbacks for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Callbacks": {
+    "slug": "/platform/iOS/Callbacks",
+    "title": "iOS Callbacks",
+    "description": "This section collects the iOS SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/iOS/Embedding%20Widgets/Banners": {
+    "slug": "/platform/iOS/Embedding%20Widgets/Banners",
+    "title": "iOS Banners",
+    "description": "Configure ios banners for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Embedding%20Widgets/Stories": {
+    "slug": "/platform/iOS/Embedding%20Widgets/Stories",
+    "title": "iOS Stories",
+    "description": "Configure ios stories for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Embedding%20Widgets": {
+    "slug": "/platform/iOS/Embedding%20Widgets",
+    "title": "iOS Embedding Widgets",
+    "description": "This section collects the iOS SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/iOS/identifying-users-ios": {
+    "slug": "/platform/iOS/identifying-users-ios",
+    "title": "Identifying Users",
+    "description": "Configure identifying users for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/installation-ios": {
+    "slug": "/platform/iOS/installation-ios",
+    "title": "Installation",
+    "description": "Configure installation for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/tracking-events-ios": {
+    "slug": "/platform/iOS/tracking-events-ios",
+    "title": "Tracking Events",
+    "description": "Configure tracking events for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/tracking-pages": {
+    "slug": "/platform/iOS/tracking-pages",
+    "title": "Tracking Pages",
+    "description": "Configure tracking pages for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Tracking%20Widgets/sending-screenshots-ios": {
+    "slug": "/platform/iOS/Tracking%20Widgets/sending-screenshots-ios",
+    "title": "Sending Screenshots on iOS",
+    "description": "Configure sending screenshots on ios for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Tracking%20Widgets/tracking-widgets-ios": {
+    "slug": "/platform/iOS/Tracking%20Widgets/tracking-widgets-ios",
+    "title": "iOS Widget Tracking",
+    "description": "Configure ios widget tracking for the iOS SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/iOS/Tracking%20Widgets": {
+    "slug": "/platform/iOS/Tracking%20Widgets",
+    "title": "iOS Tracking Widgets",
+    "description": "This section collects the iOS SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/iOS": {
+    "slug": "/platform/iOS",
+    "title": "iOS SDK",
+    "description": "This section collects the iOS SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/react-native/api-registry": {
+    "slug": "/platform/react-native/api-registry",
+    "title": "API Registry",
+    "description": "Configure api registry for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/callbacks": {
+    "slug": "/platform/react-native/callbacks",
+    "title": "React Native Callbacks",
+    "description": "Configure react native callbacks for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Embedding%20Widgets/banners": {
+    "slug": "/platform/react-native/Embedding%20Widgets/banners",
+    "title": "React Native Banners",
+    "description": "Configure react native banners for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Embedding%20Widgets/stories": {
+    "slug": "/platform/react-native/Embedding%20Widgets/stories",
+    "title": "React Native Stories",
+    "description": "Configure react native stories for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Embedding%20Widgets": {
+    "slug": "/platform/react-native/Embedding%20Widgets",
+    "title": "React Native Embedding Widgets",
+    "description": "This section collects the React Native SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/react-native/identifying-users-react-native-sdk": {
+    "slug": "/platform/react-native/identifying-users-react-native-sdk",
+    "title": "Identifying Users in React Native",
+    "description": "Configure identifying users in react native for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/installation-react-native": {
+    "slug": "/platform/react-native/installation-react-native",
+    "title": "Installation",
+    "description": "Configure installation for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/tracking-events-react-native": {
+    "slug": "/platform/react-native/tracking-events-react-native",
+    "title": "Tracking Events in React Native",
+    "description": "Configure tracking events in react native for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Tracking%20Widgets/tracking-pages": {
+    "slug": "/platform/react-native/Tracking%20Widgets/tracking-pages",
+    "title": "React Native Tracking Pages",
+    "description": "Configure react native tracking pages for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Tracking%20Widgets/tracking-widgets": {
+    "slug": "/platform/react-native/Tracking%20Widgets/tracking-widgets",
+    "title": "React Native Tracking Widgets",
+    "description": "Configure react native tracking widgets for the React Native SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/react-native/Tracking%20Widgets": {
+    "slug": "/platform/react-native/Tracking%20Widgets",
+    "title": "React Native Tracking Widgets",
+    "description": "This section collects the React Native SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/react-native": {
+    "slug": "/platform/react-native",
+    "title": "React Native SDK",
+    "description": "This section collects the React Native SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/web/04a-adding-banners-web": {
+    "slug": "/platform/web/04a-adding-banners-web",
+    "title": "Adding Banners on Web",
+    "description": "Configure adding banners on web for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/adding-stories-web": {
+    "slug": "/platform/web/adding-stories-web",
+    "title": "Adding Stories on Web",
+    "description": "Configure adding stories on web for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/api-registry": {
+    "slug": "/platform/web/api-registry",
+    "title": "API Registry",
+    "description": "Configure api registry for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/Callbacks/uicallbacks": {
+    "slug": "/platform/web/Callbacks/uicallbacks",
+    "title": "Web UI Callbacks",
+    "description": "Configure web ui callbacks for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/Callbacks": {
+    "slug": "/platform/web/Callbacks",
+    "title": "Web Callbacks",
+    "description": "This section collects the Web SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform/web/cdn-integration": {
+    "slug": "/platform/web/cdn-integration",
+    "title": "CDN Integration",
+    "description": "Configure cdn integration for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/identifying-users-web": {
+    "slug": "/platform/web/identifying-users-web",
+    "title": "Identifying Users",
+    "description": "Configure identifying users for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web/tracking-events-web": {
+    "slug": "/platform/web/tracking-events-web",
+    "title": "Tracking Events",
+    "description": "Configure tracking events for the Web SDK and keep the integration aligned with the rest of your EmbedCraft workspace.",
+    "blocks": []
+  },
+  "/platform/web": {
+    "slug": "/platform/web",
+    "title": "Web SDK",
+    "description": "This section collects the Web SDK guides for installing EmbedCraft, identifying users, tracking activity, embedding experiences, and handling callbacks.",
+    "blocks": []
+  },
+  "/platform": {
+    "slug": "/platform",
+    "title": "Platform SDKs",
+    "description": "&lt;SectionLanding",
+    "blocks": []
+  },
+  "/product/Campaigns/challenges": {
+    "slug": "/product/Campaigns/challenges",
+    "title": "Challenges",
+    "description": "Time-bound goals that drive activation, retention and monetisation.",
+    "blocks": []
+  },
+  "/product/Campaigns/display-rules": {
+    "slug": "/product/Campaigns/display-rules",
+    "title": "Campaign Display Rules",
+    "description": "Control when and how often users see your campaigns with display frequency, interaction limits, and scheduling.",
+    "blocks": []
+  },
+  "/product/Campaigns/in-app-messages": {
+    "slug": "/product/Campaigns/in-app-messages",
+    "title": "In-app messages",
+    "description": "Communicate with your users through modals, sheets, banners, and more.",
+    "blocks": []
+  },
+  "/product/Campaigns/in-app-nudges": {
+    "slug": "/product/Campaigns/in-app-nudges",
+    "title": "In-app nudges",
+    "description": "Guide users with tooltips, spotlights, and coachmarks to drive product adoption.",
+    "blocks": []
+  },
+  "/product/Campaigns/referrals": {
+    "slug": "/product/Campaigns/referrals",
+    "title": "Referrals",
+    "description": "Create multi-level referral campaigns to drive acquisition and engagement.",
+    "blocks": []
+  },
+  "/product/Campaigns/stories": {
+    "slug": "/product/Campaigns/stories",
+    "title": "Stories",
+    "description": "Embed Instagram-style story campaigns directly into your app.",
+    "blocks": []
+  },
+  "/product/Campaigns/streaks": {
+    "slug": "/product/Campaigns/streaks",
+    "title": "Streaks",
+    "description": "Reward consistent user behaviour with streak campaigns.",
+    "blocks": []
+  },
+  "/product/Campaigns/surveys": {
+    "slug": "/product/Campaigns/surveys",
+    "title": "Surveys",
+    "description": "Create in-app surveys using various question types to gather user feedback.",
+    "blocks": []
+  },
+  "/product/Campaigns": {
+    "slug": "/product/Campaigns",
+    "title": "Campaigns",
+    "description": "Create Campaigns with EmbedCraft",
+    "blocks": []
+  },
+  "/product/Cohorts/dynamic": {
+    "slug": "/product/Cohorts/dynamic",
+    "title": "Dynamic Cohorts",
+    "description": "Use dynamic cohorts to group users for campaigns, rewards, messages, and experiments.",
+    "blocks": []
+  },
+  "/product/Cohorts/import": {
+    "slug": "/product/Cohorts/import",
+    "title": "Import Cohorts",
+    "description": "Use import cohorts to group users for campaigns, rewards, messages, and experiments.",
+    "blocks": []
+  },
+  "/product/Cohorts/static": {
+    "slug": "/product/Cohorts/static",
+    "title": "Static Cohorts",
+    "description": "Upload a CSV to create a fixed group of users for targeting.",
+    "blocks": []
+  },
+  "/product/Cohorts": {
+    "slug": "/product/Cohorts",
+    "title": "Cohorts",
+    "description": "Group users based on shared behavior or properties to target experiences more effectively",
+    "blocks": []
+  },
+  "/product/Events": {
+    "slug": "/product/Events",
+    "title": "Events",
+    "description": "Events for EmbedCraft.",
+    "blocks": []
+  },
+  "/product/events": {
+    "slug": "/product/events",
+    "title": "Events",
+    "description": "Track user actions to power triggers, cohorts and analytics.",
+    "blocks": []
+  },
+  "/product/Flows": {
+    "slug": "/product/Flows",
+    "title": "Flows",
+    "description": "Orchestrate user journeys with EmbedCraft.",
+    "blocks": []
+  },
+  "/product/rewards/reward-delivery": {
+    "slug": "/product/rewards/reward-delivery",
+    "title": "Creating Reward Delivery",
+    "description": "Understand Rewards Delivery",
+    "blocks": []
+  },
+  "/product/rewards/reward": {
+    "slug": "/product/rewards/reward",
+    "title": "Creating a Reward",
+    "description": "Understand Rewards Creation",
+    "blocks": []
+  },
+  "/product/rewards": {
+    "slug": "/product/rewards",
+    "title": "Rewards",
+    "description": "Understand Rewards and Reward Delivery",
+    "blocks": []
+  },
+  "/product/Users": {
+    "slug": "/product/Users",
+    "title": "Users",
+    "description": "Understanding Users in EmbedCraft",
+    "blocks": []
+  },
+  "/product/VisualBuilder/actions": {
+    "slug": "/product/VisualBuilder/actions",
+    "title": "Actions",
+    "description": "Learn about interfaces in EmbedCraft&#39;s Visual Builder.",
+    "blocks": []
+  },
+  "/product/VisualBuilder/Interfaces": {
+    "slug": "/product/VisualBuilder/Interfaces",
+    "title": "Interfaces",
+    "description": "Interfaces for EmbedCraft.",
+    "blocks": []
+  },
+  "/product/VisualBuilder/interfaces": {
+    "slug": "/product/VisualBuilder/interfaces",
+    "title": "Interfaces",
+    "description": "Surface types you can build inside the EmbedCraft Visual Builder.",
+    "blocks": []
+  },
+  "/product/VisualBuilder/variables": {
+    "slug": "/product/VisualBuilder/variables",
+    "title": "Variables",
+    "description": "Learn about interfaces in EmbedCraft&#39;s Visual Builder.",
+    "blocks": []
+  },
+  "/product/VisualBuilder/widgets": {
+    "slug": "/product/VisualBuilder/widgets",
+    "title": "Widgets",
+    "description": "Learn about interfaces in EmbedCraft&#39;s Visual Builder.",
+    "blocks": []
+  },
+  "/product/VisualBuilder": {
+    "slug": "/product/VisualBuilder",
+    "title": "Visual Builder",
+    "description": "Learn to use the visual builder in EmbedCraft.",
+    "blocks": []
+  },
+  "/product": {
+    "slug": "/product",
+    "title": "Introduction",
+    "description": "Welcome to EmbedCraft",
+    "blocks": []
+  },
+  "/quickstart/banner-integration": {
+    "slug": "/quickstart/banner-integration",
+    "title": "Embedding Banners",
+    "description": "Banners (also known as Embedded Widgets) are native UI components that live directly within your application&#39;s layout. Unlike full-screen modals or floating popups which overlay content, banners flow naturally with your app&#39;s hierarchy.",
+    "blocks": []
+  },
+  "/quickstart/basic-integration": {
+    "slug": "/quickstart/basic-integration",
+    "title": "Basic Integration Guide",
+    "description": "End-to-end checklist to ship your first EmbedCraft experience.",
+    "blocks": []
+  },
+  "/quickstart/installation": {
+    "slug": "/quickstart/installation",
+    "title": "Installation",
+    "description": "Install the EmbedCraft SDK in your web or mobile app.",
+    "blocks": []
+  },
+  "/quickstart/stories-integration": {
+    "slug": "/quickstart/stories-integration",
+    "title": "Stories Integration",
+    "description": "Configuring SDK",
+    "blocks": []
+  },
+  "/quickstart": {
+    "slug": "/quickstart",
+    "title": "Quick Start Guide",
+    "description": "&lt;SectionLanding",
+    "blocks": []
+  },
+  "/releasenotes": {
+    "slug": "/releasenotes",
+    "title": "Release Notes",
+    "description": "Track product and SDK updates for EmbedCraft across web, mobile, APIs, integrations, and dashboard features.",
+    "blocks": []
+  },
+  "/security/authentication": {
+    "slug": "/security/authentication",
+    "title": "Short Lived Token Authentication",
+    "description": "EmbedCraft supports two types of authentication methods for better security: short-lived token authentication and static public key authentication. This document will explain how to use the short-lived token authentication method.",
+    "blocks": []
+  },
+  "/security/data-privacy": {
+    "slug": "/security/data-privacy",
+    "title": "Data and Privacy",
+    "description": "You have full control over the data you send to EmbedCraft. Here, we share best practices for tracking in a privacy-friendly way.",
+    "blocks": []
+  },
+  "/security": {
+    "slug": "/security",
+    "title": "Security",
+    "description": "Security collects the related EmbedCraft documentation pages in one place.",
+    "blocks": []
+  }
+}
