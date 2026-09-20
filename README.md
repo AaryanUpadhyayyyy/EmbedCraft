@@ -1,34 +1,28 @@
-# Docs-
+# EmbedCraft
 
 ## Docs--main
 
-# Welcome to your Lovable project
+### Docs
 
 TODO: Document your project here
 
 ---
 
-# Embed_Backend
-
 ## Embed_Backend-main
 
-# Embed_Backend
+### Embed_Backend
 
 ---
-
-# LandingPage
 
 ## LandingPage-main
 
-# LandingPage
+### LandingPage
 
 ---
 
-# embed_test_app
-
 ## embed_test_app-main
 
-# untitled
+### untitled
 
 A new Flutter project.
 
